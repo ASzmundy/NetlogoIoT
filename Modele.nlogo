@@ -1,3 +1,53 @@
+;;TURTLES
+
+;;Meubles
+breed [tables table]
+breed [chaises chaise]
+breed [lits lit]
+
+;;SETUP
+to setup
+  clear-all
+  import-pcolors "appart_petit.png"
+
+  ;;Création des meubles (manuel)
+  ;;Tables
+  ;;Tables salon
+  ask patches with [ pxcor > 5 and pxcor < 10 and pycor = 1] [
+   sprout-tables 1
+    [
+      set shape "square"
+      set color brown
+    ]
+  ]
+   ;;Table SàM
+   ask patches with [ pxcor = 14 and pycor = 2] [
+   sprout-tables 1
+    [
+      set shape "square"
+      set color brown
+    ]
+  ]
+
+  ;;Chaises
+  ask patches with [ (pxcor = 13 or pxcor = 15) and (pycor = 1 or pycor = 3)] [
+   sprout-chaises 1
+    [
+      set shape "box"
+      set color brown
+    ]
+  ]
+
+  ;Lit
+  ask patches with [ pxcor = 8 and pycor = 8] [
+   sprout-lits 1
+    [
+      set shape "bed"
+      set heading 0
+      set color brown
+    ]
+  ]
+end
 
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -26,6 +76,23 @@ GRAPHICS-WINDOW
 1
 ticks
 30.0
+
+BUTTON
+63
+34
+126
+67
+NIL
+setup
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -78,6 +145,17 @@ arrow
 true
 0
 Polygon -7500403 true true 150 0 0 150 105 150 105 293 195 293 195 150 300 150
+
+bed
+true
+0
+Rectangle -7500403 true true 45 75 75 210
+Rectangle -7500403 true true 75 150 210 150
+Rectangle -7500403 true true 75 150 240 180
+Rectangle -7500403 true true 240 150 270 210
+Rectangle -7500403 true true 60 180 75 195
+Rectangle -1 true false 75 105 105 150
+Rectangle -2674135 true false 105 105 270 150
 
 box
 false
