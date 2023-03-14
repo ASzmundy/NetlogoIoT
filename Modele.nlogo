@@ -4,6 +4,7 @@
 breed [tables table]
 breed [chaises chaise]
 breed [lits lit]
+breed [commodes commode]
 
 ;;SETUP
 to setup
@@ -38,7 +39,7 @@ to setup
     ]
   ]
 
-  ;Lit
+  ;;Lit
   ask patches with [ pxcor = 8 and pycor = 8] [
    sprout-lits 1
     [
@@ -47,8 +48,19 @@ to setup
       set color brown
     ]
   ]
-end
 
+  ;;commode
+  ask patches with [ pxcor = 6 and pycor = 6] [
+   sprout-commodes 1
+    [
+      set shape "commode"
+      set heading 90
+      set color brown
+    ]
+  ]
+
+  ;;
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -208,6 +220,18 @@ false
 0
 Circle -7500403 true true 0 0 300
 Circle -16777216 true false 30 30 240
+
+commode
+true
+0
+Rectangle -6459832 true false 15 90 285 225
+Line -16777216 false 15 135 285 135
+Line -16777216 false 15 165 285 165
+Circle -16777216 true false 135 135 30
+Line -16777216 false 15 195 285 195
+Circle -16777216 true false 135 165 30
+Line -16777216 false 15 105 285 105
+Circle -16777216 true false 135 105 30
 
 cow
 false
