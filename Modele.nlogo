@@ -1,10 +1,28 @@
-;;TURTLES
+;TURTLES
 
-;;Meubles
+;;Meubles non connectes
 breed [tables table]
 breed [chaises chaise]
-breed [lits lit]
 breed [commodes commode]
+breed [placards placard]
+
+;;Meubles connectes
+;;;SdB
+breed [douches douche]
+breed [toilettes toilette]
+breed [eviers evier]
+;;;Chambre
+breed [lits lit]
+;;;Cuisine
+breed [cafetieres cafetiere]
+
+;;Fenetres
+breed [fenetres fenetre]
+
+;;Objets
+breed [extincteurs extincteur]
+
+
 
 ;;SETUP
 to setup
@@ -59,17 +77,84 @@ to setup
     ]
   ]
 
-  ;;
+  ;;placard
+  ask patches with [ pxcor = 16 and pycor = 9] [
+   sprout-placards 1
+    [
+      set shape "square 2"
+      set color brown
+    ]
+  ]
+
+  ;;OBJETS CONNECTES
+  ;;;SDB
+  ;;;;douche
+  ask patches with [pxcor = 1 and pycor = 6] [
+   sprout-douches 1
+    [
+      set shape "drop"
+      set color cyan
+    ]
+  ]
+
+  ;;;;toilettes
+  ask patches with [pxcor = 1 and pycor = 9] [
+   sprout-douches 1
+    [
+      set shape "box"
+      set color cyan
+    ]
+  ]
+
+  ;;;;evier
+  ask patches with [pxcor = 4 and pycor = 9] [
+   sprout-eviers 1
+    [
+      set shape "chess rook"
+      set color white
+    ]
+  ]
+
+  ;;;Cuisine
+  ;;;;Cafetiere
+  ask patches with [pxcor = 12 and pycor = 9] [
+   sprout-cafetieres 1
+    [
+      set shape "tooth"
+      set color black
+    ]
+  ]
+
+  ;;Création des fenêtres
+  ask patches with [pcolor = 105] [
+   sprout-fenetres 1
+    [
+      set shape "square"
+      set color cyan
+    ]
+  ]
+
+  ;;Création des objets (manuel)
+  ;;extincteur
+  ask patches with [ pxcor = 1 and pycor = 4] [
+   sprout-extincteurs 1
+    [
+      set shape "bottle"
+      set heading 0
+      set color red
+    ]
+  ]
+
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-612
-260
+430
+15
+1450
+642
 -1
 -1
-21.91
+56.22222222222222
 1
 10
 1
@@ -169,6 +254,18 @@ Rectangle -7500403 true true 60 180 75 195
 Rectangle -1 true false 75 105 105 150
 Rectangle -2674135 true false 105 105 270 150
 
+bottle
+false
+0
+Circle -7500403 true true 90 240 60
+Rectangle -1 true false 135 8 165 31
+Line -7500403 true 123 30 175 30
+Circle -7500403 true true 150 240 60
+Rectangle -7500403 true true 90 105 210 270
+Rectangle -7500403 true true 120 270 180 300
+Circle -7500403 true true 90 45 120
+Rectangle -7500403 true true 135 27 165 51
+
 box
 false
 0
@@ -200,6 +297,15 @@ Circle -16777216 true false 135 90 30
 Line -16777216 false 150 105 195 60
 Line -16777216 false 150 105 105 60
 
+cannon
+true
+0
+Polygon -7500403 true true 165 0 165 15 180 150 195 165 195 180 180 195 165 225 135 225 120 195 105 180 105 165 120 150 135 15 135 0
+Line -16777216 false 120 150 180 150
+Line -16777216 false 120 195 180 195
+Line -16777216 false 165 15 135 15
+Polygon -16777216 false false 165 0 135 0 135 15 120 150 105 165 105 180 120 195 135 225 165 225 180 195 195 180 195 165 180 150 165 15
+
 car
 false
 0
@@ -209,6 +315,20 @@ Circle -16777216 true false 30 180 90
 Polygon -16777216 true false 162 80 132 78 134 135 209 135 194 105 189 96 180 89
 Circle -7500403 true true 47 195 58
 Circle -7500403 true true 195 195 58
+
+chess rook
+false
+0
+Rectangle -7500403 true true 90 255 210 300
+Line -16777216 false 75 255 225 255
+Rectangle -16777216 false false 90 255 210 300
+Polygon -7500403 true true 90 255 105 105 195 105 210 255
+Polygon -16777216 false false 90 255 105 105 195 105 210 255
+Rectangle -7500403 true true 75 90 120 60
+Rectangle -7500403 true true 75 84 225 105
+Rectangle -7500403 true true 135 90 165 60
+Rectangle -7500403 true true 180 90 225 60
+Polygon -16777216 false false 90 105 75 105 75 60 120 60 120 84 135 84 135 60 165 60 165 84 179 84 180 60 225 60 225 105
 
 circle
 false
@@ -249,6 +369,13 @@ dot
 false
 0
 Circle -7500403 true true 90 90 120
+
+drop
+false
+0
+Circle -7500403 true true 73 133 152
+Polygon -7500403 true true 219 181 205 152 185 120 174 95 163 64 156 37 149 7 147 166
+Polygon -7500403 true true 79 182 95 152 115 120 126 95 137 64 144 37 150 6 154 165
 
 face happy
 false
@@ -398,6 +525,12 @@ Circle -16777216 true false 30 30 240
 Circle -7500403 true true 60 60 180
 Circle -16777216 true false 90 90 120
 Circle -7500403 true true 120 120 60
+
+tooth
+false
+0
+Polygon -7500403 true true 75 30 60 45 45 75 45 90 60 135 73 156 75 170 60 240 60 270 75 285 90 285 105 255 135 180 150 165 165 165 180 185 195 270 210 285 240 270 245 209 244 179 237 154 237 143 255 90 255 60 225 30 210 30 180 45 135 45 90 30
+Polygon -7500403 false true 75 30 60 45 45 75 45 90 60 135 73 158 74 170 60 240 60 270 75 285 90 285 105 255 135 180 150 165 165 165 177 183 195 270 210 285 240 270 245 210 244 179 236 153 236 144 255 90 255 60 225 30 210 30 180 45 135 45 90 30 75 30
 
 tree
 false
