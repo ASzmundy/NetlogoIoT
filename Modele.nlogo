@@ -1,5 +1,8 @@
-;TURTLES
+;VARIABLES GLOBALES
+;;#TODO
 
+
+;TURTLES
 ;;Meubles non connectes
 breed [tables table]
 
@@ -119,8 +122,6 @@ breed [livres livre]
 ;;Alarmes
 breed [alarmes alarme]
 alarmes-own [isactif]
-
-
 
 ;SETUP
 to setup
