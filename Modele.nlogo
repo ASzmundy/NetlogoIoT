@@ -29,22 +29,31 @@ breed [bibliotheques bibliotheque]
 breed [stationroombas stationroomba]
 breed [roombas roomba]
 
+;;Meubles communs
+breed [chauffages chauffage]
+breed [climatisateurs climatisateur]
+breed [lampes lampe]
+
 ;;Fenetres
 breed [fenetres fenetre]
+breed [volets volet]
 
 ;;Objets
 breed [extincteurs extincteur]
 
+;;Alarmes
+breed [alarmes alarme]
 
 
-;;SETUP
+
+;SETUP
 to setup
   clear-all
   import-pcolors "appart_petit.png"
 
   ;;Création des meubles (manuel)
-  ;;Tables
-  ;;Tables salon
+  ;;;Tables
+  ;;;;Tables salon
   ask patches with [ pxcor > 5 and pxcor < 10 and pycor = 1] [
    sprout-tables 1
     [
@@ -52,7 +61,7 @@ to setup
       set color brown
     ]
   ]
-   ;;Table SàM
+   ;;;;Table SàM
    ask patches with [ pxcor = 14 and pycor = 2] [
    sprout-tables 1
     [
@@ -61,7 +70,7 @@ to setup
     ]
   ]
 
-  ;;Chaises
+  ;;;Chaises
   ask patches with [ (pxcor = 13 or pxcor = 15) and (pycor = 1 or pycor = 3)] [
    sprout-chaises 1
     [
@@ -70,7 +79,7 @@ to setup
     ]
   ]
 
-  ;;Lit
+  ;;;Lit
   ask patches with [ pxcor = 8 and pycor = 8] [
    sprout-lits 1
     [
@@ -80,7 +89,7 @@ to setup
     ]
   ]
 
-  ;;commode
+  ;;;commode
   ask patches with [ pxcor = 6 and pycor = 6] [
    sprout-commodes 1
     [
@@ -90,7 +99,7 @@ to setup
     ]
   ]
 
-  ;;placard
+  ;;;placard
   ask patches with [ pxcor = 16 and pycor = 9] [
    sprout-placards 1
     [
@@ -214,7 +223,6 @@ to setup
    sprout-bibliotheques 1
     [
       set shape "container"
-      set heading 0
       set color brown
     ]
   ]
@@ -234,12 +242,70 @@ to setup
     [
       set shape "circle"
       set color grey
+      set size 0.7
     ]
   ]
 
-  ;;Création des fenêtres
+  ;;Création des meubles communs
+  ;;;Lampes
+  ask patches with
+  [
+    (pxcor = 2 and pycor = 2)
+    or (pxcor = 2 and pycor = 7)
+    or (pxcor = 8 and pycor = 6)
+    or (pxcor = 8 and pycor = 2)
+    or (pxcor = 13 and pycor = 2)
+    or (pxcor = 14 and pycor = 6)
+  ][
+   sprout-lampes 1[
+      set shape "triangle 2"
+      set color yellow
+      set size 0.6
+    ]
+  ]
+  ;;;Chauffages
+  ask patches with
+  [
+    (pxcor = 1 and pycor = 2)
+    or (pxcor = 12 and pycor = 1)
+    or (pxcor = 4 and pycor = 7)
+  ][
+   sprout-chauffages 1[
+      set shape "container"
+      set color white
+    ]
+  ]
+  ;;;Climatisateurs
+  ask patches with
+  [
+    pxcor = 16 and pycor = 2
+  ][
+   sprout-climatisateurs 1[
+      set shape "computer server"
+      set color white
+    ]
+  ]
+
+  ;;Création des alarmes
+  ask patches with
+  [
+    pxcor = 12 and pycor = 4
+  ][
+   sprout-alarmes 1[
+      set shape "coin tails"
+      set color white
+      set size 0.7
+    ]
+  ]
+
+  ;;Création des fenêtres et volets
   ask patches with [pcolor = 105] [
    sprout-fenetres 1
+    [
+      set shape "square 2"
+      set color cyan
+    ]
+    sprout-volets 1
     [
       set shape "square"
       set color cyan
@@ -247,7 +313,7 @@ to setup
   ]
 
   ;;Création des objets (manuel)
-  ;;extincteur
+  ;;;extincteur
   ask patches with [ pxcor = 1 and pycor = 4] [
    sprout-extincteurs 1
     [
@@ -453,6 +519,21 @@ false
 Circle -7500403 true true 0 0 300
 Circle -16777216 true false 30 30 240
 
+coin tails
+false
+0
+Circle -7500403 true true 15 15 270
+Circle -16777216 false false 20 17 260
+Line -16777216 false 130 92 171 92
+Line -16777216 false 123 79 177 79
+Rectangle -7500403 true true 57 101 242 133
+Rectangle -16777216 false false 45 180 255 195
+Rectangle -16777216 false false 75 120 225 135
+Polygon -16777216 false false 81 226 70 241 86 248 93 235 89 232 108 243 97 256 118 247 118 265 123 248 142 247 129 253 130 271 145 269 131 259 162 245 153 262 168 268 197 259 177 255 187 245 174 243 193 235 209 251 193 234 225 244 208 227 240 240 222 218
+Rectangle -7500403 true true 91 210 222 226
+Polygon -16777216 false false 65 70 91 50 136 35 181 35 226 65 246 86 241 65 196 50 166 35 121 50 91 50 61 95 54 80 61 65
+Polygon -16777216 false false 90 135 60 135 60 180 90 180 90 135 120 135 120 180 150 180 150 135 180 135 180 180 210 180 210 135 240 135 240 180 210 180 210 135
+
 commode
 true
 0
@@ -464,6 +545,27 @@ Line -16777216 false 15 195 285 195
 Circle -16777216 true false 135 165 30
 Line -16777216 false 15 105 285 105
 Circle -16777216 true false 135 105 30
+
+computer server
+false
+0
+Rectangle -7500403 true true 75 30 225 270
+Line -16777216 false 210 30 210 195
+Line -16777216 false 90 30 90 195
+Line -16777216 false 90 195 210 195
+Rectangle -10899396 true false 184 34 200 40
+Rectangle -10899396 true false 184 47 200 53
+Rectangle -10899396 true false 184 63 200 69
+Line -16777216 false 90 210 90 255
+Line -16777216 false 105 210 105 255
+Line -16777216 false 120 210 120 255
+Line -16777216 false 135 210 135 255
+Line -16777216 false 165 210 165 255
+Line -16777216 false 180 210 180 255
+Line -16777216 false 195 210 195 255
+Line -16777216 false 210 210 210 255
+Rectangle -7500403 true true 84 232 219 236
+Rectangle -16777216 false false 101 172 112 184
 
 container
 false
@@ -589,6 +691,12 @@ Rectangle -16777216 true false 120 210 180 285
 Polygon -7500403 true true 15 120 150 15 285 120
 Line -16777216 false 30 120 270 120
 
+i beam
+false
+0
+Polygon -7500403 true true 165 15 240 15 240 45 195 75 195 240 240 255 240 285 165 285
+Polygon -7500403 true true 135 15 60 15 60 45 105 75 105 240 60 255 60 285 135 285
+
 lander
 true
 0
@@ -696,6 +804,21 @@ false
 0
 Polygon -7500403 true true 75 30 60 45 45 75 45 90 60 135 73 156 75 170 60 240 60 270 75 285 90 285 105 255 135 180 150 165 165 165 180 185 195 270 210 285 240 270 245 209 244 179 237 154 237 143 255 90 255 60 225 30 210 30 180 45 135 45 90 30
 Polygon -7500403 false true 75 30 60 45 45 75 45 90 60 135 73 158 74 170 60 240 60 270 75 285 90 285 105 255 135 180 150 165 165 165 177 183 195 270 210 285 240 270 245 210 244 179 236 153 236 144 255 90 255 60 225 30 210 30 180 45 135 45 90 30 75 30
+
+train freight boxcar
+false
+0
+Rectangle -7500403 true true 10 100 290 195
+Rectangle -16777216 false false 9 99 289 195
+Circle -16777216 true false 253 195 30
+Circle -16777216 true false 220 195 30
+Circle -16777216 true false 50 195 30
+Circle -16777216 true false 17 195 30
+Rectangle -16777216 true false 290 180 299 195
+Rectangle -16777216 true false 105 90 135 90
+Rectangle -16777216 true false 1 180 10 195
+Rectangle -16777216 false false 105 105 195 180
+Line -16777216 false 150 105 150 180
 
 tree
 false
