@@ -2,47 +2,123 @@
 
 ;;Meubles non connectes
 breed [tables table]
+
 breed [chaises chaise]
+
 breed [commodes commode]
+commodes-own [quantitelinge]
+
 breed [placards placard]
+placards-own [quantitevaisselle]
 
 ;;Meubles connectes
 ;;;SdB
 breed [douches douche]
+douches-own [temperatureeau debit isactif]
+
 breed [toilettes toilette]
+toilettes-own [capacitereservoir debitremplissage isactif]
+
 breed [eviers evier]
+eviers-own [temperatureeau debit isactif]
+
 ;;;Chambre
 breed [lits lit]
+lits-own [qualitesommeil isactif]
+
+
 ;;;Cuisine
 breed [cafetieres cafetiere]
+cafetieres-own [capacitecafe capaciteeau temperaturecafe isactif]
+
 breed [plaques plaque]
+plaques-own [temperature puissance minuteur isactif]
+
 breed [hottes hotte]
+hottes-own [puissance isactif]
+
 breed [lavelinges lavelinge]
+lavelinges-own [degresalissure poidslinge isactif]
+
 breed [sechelinges sechelinge]
+sechelinges-own [temperature humidite poidslinge isactif]
+
 breed [fours four]
+fours-own [modecuisson puissance temperature minuteur isactif]
+
 breed [frigos frigo]
+frigos-own [temperature isporteouverte nombrefruits nombrelegumes nombreviandes nombrerepas isactif]
+
 breed [panierlinges panierlinge]
+panierlinges-own [quantitelinge]
+
 breed [microondes microonde]
+microondes-own [modecuisson puissance minuteur isactif]
+
 breed [bibliotheques bibliotheque]
+bibliotheques-own [quantitelivres]
+
 
 ;;;SaM
 breed [stationroombas stationroomba]
+stationroombas-own [isroombaonstation isactif]
+
 breed [roombas roomba]
+roombas-own [capacitesac tauxdesalete batterie isactif]
+
 
 ;;Meubles communs
 breed [chauffages chauffage]
+chauffages-own [puissance temperatureambiente isactif]
+
 breed [climatisateurs climatisateur]
+climatisateurs-own [puissance temperatureambiente isactif]
+
 breed [lampes lampe]
+lampes-own [luminosite couleurlampe isactif]
+
 
 ;;Fenetres
 breed [fenetres fenetre]
+fenetres-own [isouvert]
+
 breed [volets volet]
+volets-own [isouvert]
+
 
 ;;Objets
 breed [extincteurs extincteur]
+extincteurs-own[quantitepoudre]
+
+breed [vaisselles vaisselle]
+vaisselles-own[proprete]
+
+breed [pastillelavevaisselles pastillelavevaisselle]
+
+breed [fruits fruit]
+fruits-own [nutrition fraicheur]
+
+breed [legumes legume]
+legumes-own [nutrition fraicheur]
+
+breed [viandes viande]
+viandes-own [nutrition fraicheur]
+
+breed [repass repas]
+repass-own [nutrition temperature temperaturecuisson etatcuisson quantite isconsommablefroid fraicheur]
+
+breed [linges linge]
+linges-own [poids proprete humidite]
+
+breed [cafes cafe]
+cafes-own [temperature quantite]
+
+breed [livres livre]
+
 
 ;;Alarmes
 breed [alarmes alarme]
+alarmes-own [isactif]
 
 
 
@@ -108,7 +184,7 @@ to setup
     ]
   ]
 
-  ;;OBJETS CONNECTES
+  ;;Meubles CONNECTES
   ;;;SDB
   ;;;;douche
   ask patches with [pxcor = 1 and pycor = 6] [
@@ -121,7 +197,7 @@ to setup
 
   ;;;;toilettes
   ask patches with [pxcor = 1 and pycor = 9] [
-   sprout-douches 1
+   sprout-toilettes 1
     [
       set shape "box"
       set color cyan
