@@ -15,6 +15,19 @@ breed [eviers evier]
 breed [lits lit]
 ;;;Cuisine
 breed [cafetieres cafetiere]
+breed [plaques plaque]
+breed [hottes hotte]
+breed [lavelinges lavelinge]
+breed [sechelinges sechelinge]
+breed [fours four]
+breed [frigos frigo]
+breed [panierlinges panierlinge]
+breed [microondes microonde]
+breed [bibliotheques bibliotheque]
+
+;;;SaM
+breed [stationroombas stationroomba]
+breed [roombas roomba]
 
 ;;Fenetres
 breed [fenetres fenetre]
@@ -107,7 +120,7 @@ to setup
   ]
 
   ;;;;evier
-  ask patches with [pxcor = 4 and pycor = 9] [
+  ask patches with [(pxcor = 4 and pycor = 9) or (pxcor = 16 and pycor = 6)] [
    sprout-eviers 1
     [
       set shape "chess rook"
@@ -122,6 +135,105 @@ to setup
     [
       set shape "tooth"
       set color black
+    ]
+  ]
+  ;;;;plaque
+  ask patches with [pxcor = 12 and pycor = 8] [
+   sprout-plaques 1
+    [
+      set shape "molecule oxygen"
+      set heading 0
+      set color black
+    ]
+  ]
+  ;;;;hotte
+  ask patches with [pxcor = 12 and pycor = 8] [
+   sprout-hottes 1
+    [
+      set shape "lander"
+      set heading 0
+      set color grey
+    ]
+  ]
+  ;;;;lave-linge
+  ask patches with [pxcor = 16 and pycor = 8] [
+   sprout-hottes 1
+    [
+      set shape "lavelinge"
+      set heading 0
+      set color black
+    ]
+  ]
+  ;;;;sèche-linge
+  ask patches with [pxcor = 16 and pycor = 7] [
+   sprout-hottes 1
+    [
+      set shape "square"
+      set heading 0
+      set color white
+    ]
+  ]
+  ;;;;four
+  ask patches with [pxcor = 12 and pycor = 6] [
+   sprout-fours 1
+    [
+      set shape "square"
+      set heading 0
+      set color grey
+    ]
+  ]
+  ;;;;frigo
+  ask patches with [pxcor = 12 and pycor = 7] [
+   sprout-frigos 1
+    [
+      set shape "square 2"
+      set heading 0
+      set color white
+    ]
+  ]
+  ;;;;panier à linge
+  ask patches with [pxcor = 16 and pycor = 5] [
+   sprout-panierlinges 1
+    [
+      set shape "garbage can"
+      set heading 0
+      set color brown
+    ]
+  ]
+  ;;;;four à micro ondes
+  ask patches with [pxcor = 12 and pycor = 5] [
+   sprout-microondes 1
+    [
+      set shape "square"
+      set heading 0
+      set color grey + 3
+    ]
+  ]
+  ;;;;bibliothèque
+  ask patches with [pxcor = 14 and pycor = 9] [
+   sprout-bibliotheques 1
+    [
+      set shape "container"
+      set heading 0
+      set color brown
+    ]
+  ]
+
+  ;;;SaM
+  ;;;;Station roomba
+  ask patches with [pxcor = 11 and pycor = 1] [
+   sprout-stationroombas 1
+    [
+      set shape "circle 2"
+      set color grey
+    ]
+  ]
+  ;;;;Roomba
+  ask patches with [pxcor = 11 and pycor = 1] [
+   sprout-roombas 1
+    [
+      set shape "circle"
+      set color grey
     ]
   ]
 
@@ -353,6 +465,23 @@ Circle -16777216 true false 135 165 30
 Line -16777216 false 15 105 285 105
 Circle -16777216 true false 135 105 30
 
+container
+false
+0
+Rectangle -7500403 false false 0 75 300 225
+Rectangle -7500403 true true 0 75 300 225
+Line -16777216 false 0 210 300 210
+Line -16777216 false 0 90 300 90
+Line -16777216 false 150 90 150 210
+Line -16777216 false 120 90 120 210
+Line -16777216 false 90 90 90 210
+Line -16777216 false 240 90 240 210
+Line -16777216 false 270 90 270 210
+Line -16777216 false 30 90 30 210
+Line -16777216 false 60 90 60 210
+Line -16777216 false 210 90 210 210
+Line -16777216 false 180 90 180 210
+
 cow
 false
 0
@@ -435,6 +564,23 @@ Circle -16777216 true false 113 68 74
 Polygon -10899396 true false 189 233 219 188 249 173 279 188 234 218
 Polygon -10899396 true false 180 255 150 210 105 210 75 240 135 240
 
+garbage can
+false
+0
+Polygon -16777216 false false 60 240 66 257 90 285 134 299 164 299 209 284 234 259 240 240
+Rectangle -7500403 true true 60 75 240 240
+Polygon -7500403 true true 60 238 66 256 90 283 135 298 165 298 210 283 235 256 240 238
+Polygon -7500403 true true 60 75 66 57 90 30 135 15 165 15 210 30 235 57 240 75
+Polygon -7500403 true true 60 75 66 93 90 120 135 135 165 135 210 120 235 93 240 75
+Polygon -16777216 false false 59 75 66 57 89 30 134 15 164 15 209 30 234 56 239 75 235 91 209 120 164 135 134 135 89 120 64 90
+Line -16777216 false 210 120 210 285
+Line -16777216 false 90 120 90 285
+Line -16777216 false 125 131 125 296
+Line -16777216 false 65 93 65 258
+Line -16777216 false 175 131 175 296
+Line -16777216 false 235 93 235 258
+Polygon -16777216 false false 112 52 112 66 127 51 162 64 170 87 185 85 192 71 180 54 155 39 127 36
+
 house
 false
 0
@@ -442,6 +588,17 @@ Rectangle -7500403 true true 45 120 255 285
 Rectangle -16777216 true false 120 210 180 285
 Polygon -7500403 true true 15 120 150 15 285 120
 Line -16777216 false 30 120 270 120
+
+lander
+true
+0
+Polygon -7500403 true true 45 75 150 30 255 75 285 225 240 225 240 195 210 195 210 225 165 225 165 195 135 195 135 225 90 225 90 195 60 195 60 225 15 225 45 75
+
+lavelinge
+false
+0
+Rectangle -1 true false 45 45 255 255
+Circle -7500403 true true 88 103 124
 
 leaf
 false
@@ -458,6 +615,14 @@ line half
 true
 0
 Line -7500403 true 150 0 150 150
+
+molecule oxygen
+true
+0
+Circle -7500403 true true 120 75 150
+Circle -16777216 false false 120 75 150
+Circle -7500403 true true 30 75 150
+Circle -16777216 false false 30 75 150
 
 pentagon
 false
