@@ -1,5 +1,48 @@
 ;VARIABLES GLOBALES
-;;#TODO
+globals[
+  ;;STATIQUES
+  ;;;Coordonnées
+  Latitude
+  Longitude
+  ;;;Températures/Saison
+  MinTempHiver
+  MaxTempHiver
+  MinTempPrintemps
+  MaxTempPrintemps
+  MinTempEte
+  MaxTempEte
+  MinTempAutomne
+  MaxTempAutomne
+  ;;;Utilisateur
+  TypeHandicap
+
+  ;;DYNAMIQUES
+  ;;Date et heure
+  Jour
+  Mois
+  Annee
+  Heure
+  Minute
+  Seconde
+  ;;Extérieur
+  LuminositeExterieure
+  TempératureExterieure
+  HeureLeverSoleil
+  HeureCoucherSoleil
+  ;;Intérieur
+  LuminositePiecePrincipales
+  LuminositeEntree
+  LuminositeSdB
+  MouvementPiecePrincipales
+  MouvementEntree
+  MouvementSdB
+  FumeePiecePrincipales
+  FumeeEntree
+  FumeeSdB
+  COPiecePrincipales
+  COEntree
+  COSdB
+]
 
 
 ;TURTLES
@@ -17,13 +60,13 @@ placards-own [quantitevaisselle]
 ;;Meubles connectes
 ;;;SdB
 breed [douches douche]
-douches-own [temperatureeau debit isactif]
+douches-own [Temperatureeau debit isactif]
 
 breed [toilettes toilette]
 toilettes-own [capacitereservoir debitremplissage isactif]
 
 breed [eviers evier]
-eviers-own [temperatureeau debit isactif]
+eviers-own [Temperatureeau debit isactif]
 
 ;;;Chambre
 breed [lits lit]
@@ -32,10 +75,10 @@ lits-own [qualitesommeil isactif]
 
 ;;;Cuisine
 breed [cafetieres cafetiere]
-cafetieres-own [capacitecafe capaciteeau temperaturecafe isactif]
+cafetieres-own [capacitecafe capaciteeau Temperaturecafe isactif]
 
 breed [plaques plaque]
-plaques-own [temperature puissance minuteur isactif]
+plaques-own [Temperature puissance minuteur isactif]
 
 breed [hottes hotte]
 hottes-own [puissance isactif]
@@ -49,14 +92,17 @@ sechelinges-own [temperature humidite poidslinge isactif]
 breed [fours four]
 fours-own [modecuisson puissance temperature minuteur isactif]
 
+breed [lavevaisselles lavevaisselle]
+lavevaisselles-own [modecycle dureerestante nbpastilles temperatureeau tauxsalete isactif]
+
 breed [frigos frigo]
-frigos-own [temperature isporteouverte nombrefruits nombrelegumes nombreviandes nombrerepas isactif]
+frigos-own [Temperature isporteouverte nombrefruits nombrelegumes nombreviandes nombrerepas isactif]
 
 breed [panierlinges panierlinge]
 panierlinges-own [quantitelinge]
 
 breed [microondes microonde]
-microondes-own [modecuisson puissance minuteur isactif]
+microondes-own [puissance minuteur isactif]
 
 breed [bibliotheques bibliotheque]
 bibliotheques-own [quantitelivres]
@@ -72,10 +118,10 @@ roombas-own [capacitesac tauxdesalete batterie isactif]
 
 ;;Meubles communs
 breed [chauffages chauffage]
-chauffages-own [puissance temperatureambiente isactif]
+chauffages-own [puissance temperatureambiante isactif]
 
 breed [climatisateurs climatisateur]
-climatisateurs-own [puissance temperatureambiente isactif]
+climatisateurs-own [puissance temperatureambiante isactif]
 
 breed [lampes lampe]
 lampes-own [luminosite couleurlampe isactif]
@@ -91,10 +137,10 @@ volets-own [isouvert]
 
 ;;Objets
 breed [extincteurs extincteur]
-extincteurs-own[quantitepoudre]
+extincteurs-own [quantitepoudre]
 
 breed [vaisselles vaisselle]
-vaisselles-own[proprete]
+vaisselles-own [proprete]
 
 breed [pastillelavevaisselles pastillelavevaisselle]
 
@@ -108,13 +154,13 @@ breed [viandes viande]
 viandes-own [nutrition fraicheur]
 
 breed [repass repas]
-repass-own [nutrition temperature temperaturecuisson etatcuisson quantite isconsommablefroid fraicheur]
+repass-own [nutrition Mouvement Mouvementcuisson etatcuisson quantite isconsommablefroid fraicheur]
 
 breed [linges linge]
 linges-own [poids proprete humidite]
 
 breed [cafes cafe]
-cafes-own [temperature quantite]
+cafes-own [Mouvement quantite]
 
 breed [livres livre]
 
@@ -122,6 +168,49 @@ breed [livres livre]
 ;;Alarmes
 breed [alarmes alarme]
 alarmes-own [isactif]
+
+;;Capteurs
+;;;Génériques
+breed [CapteurTemperatures CapteurTemperature]
+breed [CapteurPortes CapteurPorte]
+breed [CapteurMouvements CapteurMouvement]
+breed [CapteurAllumages CapteurAllumage]
+breed [CapteurFumees CapteurFumee]
+breed [CapteurCOs CapteurCO]
+;;;Spécifiques
+breed [CapteurDouches CapteurDouche]
+breed [CapteurToilettes CapteurToilette]
+breed [CapteurLits CapteurLit]
+breed [CapteurCafetieres CapteurCafetiere]
+breed [CapteurStationRoombas CapteurStationRoomba]
+breed [CapteurRoombas CapteurRoomba]
+breed [CapteurLampes CapteurLampe]
+breed [CapteurFourMOs CapteurFourMO]
+breed [CapteurFours CapteurFour]
+breed [CapteurLaveVaisselles CapteurLaveVaisselle]
+breed [CapteurFrigos CapteurFrigo]
+breed [CapteurPlaques CapteurPlaque]
+breed [CapteurLaveLinges CapteurLaveLinge]
+breed [CapteurChauffages CapteurChauffage]
+breed [CapteurClims CapteurClim]
+
+
+
+
+
+
+;LINKS
+;;Links capteurs
+directed-link-breed [CapteurLinks CapteurLink]
+capteurlinks-own [
+  nomdonneeaextraire
+]
+
+;;Links objets
+;;TODO
+;;Links utilisateurs
+;;TODO
+
 
 ;SETUP
 to setup
@@ -147,6 +236,15 @@ to setup
     ]
   ]
 
+  ;;;;Table Cuisine
+  ask patches with [ pxcor = 16 and pycor = 7] [
+   sprout-tables 1
+    [
+      set shape "square"
+      set color brown
+    ]
+  ]
+
   ;;;Chaises
   ask patches with [ (pxcor = 13 or pxcor = 15) and (pycor = 1 or pycor = 3)] [
    sprout-chaises 1
@@ -163,6 +261,8 @@ to setup
       set shape "bed"
       set heading 0
       set color brown
+      set qualitesommeil 0
+      set isactif 0
     ]
   ]
 
@@ -173,6 +273,7 @@ to setup
       set shape "commode"
       set heading 90
       set color brown
+      set quantitelinge 10
     ]
   ]
 
@@ -182,6 +283,7 @@ to setup
     [
       set shape "square 2"
       set color brown
+      set quantitevaisselle 10
     ]
   ]
 
@@ -193,6 +295,9 @@ to setup
     [
       set shape "drop"
       set color cyan
+      set temperatureeau 0 ;;TODO mettre à température intérieur
+      set debit 0
+      set isactif 0
     ]
   ]
 
@@ -202,15 +307,21 @@ to setup
     [
       set shape "box"
       set color cyan
+      set capacitereservoir 100
+      set debitremplissage 0
+      set isactif 0
     ]
   ]
 
-  ;;;;evier
+  ;;;;évier
   ask patches with [(pxcor = 4 and pycor = 9) or (pxcor = 16 and pycor = 6)] [
    sprout-eviers 1
     [
       set shape "chess rook"
       set color white
+      set temperatureeau 0 ;;TODO mettre à température intérieur
+      set debit 0
+      set isactif 0
     ]
   ]
 
@@ -221,6 +332,10 @@ to setup
     [
       set shape "tooth"
       set color black
+      set capacitecafe 0
+      set capaciteeau 100
+      set temperaturecafe 0 ;;TODO mettre à température intérieur
+      set isactif 0
     ]
   ]
   ;;;;plaque
@@ -230,6 +345,10 @@ to setup
       set shape "molecule oxygen"
       set heading 0
       set color black
+      set temperature 0 ;;TODO mettre à température intérieur
+      set puissance 0
+      set minuteur 0
+      set isactif 0
     ]
   ]
   ;;;;hotte
@@ -239,24 +358,33 @@ to setup
       set shape "lander"
       set heading 0
       set color grey
+      set puissance 0
+      set isactif 0
     ]
   ]
   ;;;;lave-linge
-  ask patches with [pxcor = 16 and pycor = 8] [
-   sprout-hottes 1
+  ask patches with [pxcor = 2 and pycor = 6] [
+   sprout-lavelinges 1
     [
       set shape "lavelinge"
       set heading 0
       set color black
+      set degresalissure 0
+      set poidslinge 0
+      set isactif 0
     ]
   ]
   ;;;;sèche-linge
-  ask patches with [pxcor = 16 and pycor = 7] [
-   sprout-hottes 1
+  ask patches with [pxcor = 4 and pycor = 6] [
+   sprout-sechelinges 1
     [
       set shape "square"
       set heading 0
       set color white
+      set temperature 0 ;;TODO mettre à température intérieur
+      set humidite 0
+      set poidslinge 0
+      set isactif 0
     ]
   ]
   ;;;;four
@@ -266,8 +394,31 @@ to setup
       set shape "square"
       set heading 0
       set color grey
+      set modecuisson "Voute" ;;Peut être "Voute","Sole","Tournant"
+      set puissance 0
+      set temperature 0 ;;TODO mettre à température intérieur
+      set minuteur 0
+      set isactif 0
     ]
   ]
+
+
+  ;;;;lave-vaisselle
+  ask patches with [pxcor = 16 and pycor = 8] [
+   sprout-lavevaisselles 1
+    [
+      set shape "square"
+      set heading 0
+      set color cyan
+      set modecycle "Rincage" ;Peut être "Lavage","Rincage" et "Séchage"
+      set dureerestante 0
+      set nbpastilles 5
+      set temperatureeau 0 ;;TODO mettre à température intérieur
+      set tauxsalete 0
+      set isactif 0
+    ]
+  ]
+
   ;;;;frigo
   ask patches with [pxcor = 12 and pycor = 7] [
    sprout-frigos 1
@@ -275,6 +426,13 @@ to setup
       set shape "square 2"
       set heading 0
       set color white
+      set temperature 2
+      set isporteouverte 0
+      set nombrefruits 10
+      set nombrelegumes 10
+      set nombreviandes 10
+      set nombrerepas 0
+      set isactif 1
     ]
   ]
   ;;;;panier à linge
@@ -284,6 +442,7 @@ to setup
       set shape "garbage can"
       set heading 0
       set color brown
+      set quantitelinge 0
     ]
   ]
   ;;;;four à micro ondes
@@ -293,6 +452,9 @@ to setup
       set shape "square"
       set heading 0
       set color grey + 3
+      set puissance 0
+      set minuteur 0
+      set isactif 0
     ]
   ]
   ;;;;bibliothèque
@@ -301,6 +463,7 @@ to setup
     [
       set shape "container"
       set color brown
+      set quantitelivres 10
     ]
   ]
 
@@ -311,6 +474,8 @@ to setup
     [
       set shape "circle 2"
       set color grey
+      set isroombaonstation 1
+      set isactif 0
     ]
   ]
   ;;;;Roomba
@@ -320,6 +485,10 @@ to setup
       set shape "circle"
       set color grey
       set size 0.7
+      set capacitesac 0
+      set tauxdesalete 0
+      set batterie 100
+      set isactif 0
     ]
   ]
 
@@ -338,6 +507,9 @@ to setup
       set shape "triangle 2"
       set color yellow
       set size 0.6
+      set luminosite 250
+      set couleurlampe 2700 ;en K ;TODO Couleurs lampes différentes selon pièces
+      set isactif 0
     ]
   ]
   ;;;Chauffages
@@ -350,6 +522,9 @@ to setup
    sprout-chauffages 1[
       set shape "container"
       set color white
+      set puissance 0
+      set temperatureambiante 0 ;;TODO mettre à température intérieur
+      set isactif 0
     ]
   ]
   ;;;Climatisateurs
@@ -360,6 +535,9 @@ to setup
    sprout-climatisateurs 1[
       set shape "computer server"
       set color white
+      set puissance 0
+      set temperatureambiante 0 ;;TODO mettre à température intérieur
+      set isactif 0
     ]
   ]
 
@@ -372,6 +550,7 @@ to setup
       set shape "coin tails"
       set color white
       set size 0.7
+      set isactif 0
     ]
   ]
 
@@ -381,11 +560,13 @@ to setup
     [
       set shape "square 2"
       set color cyan
+      set isouvert 0
     ]
     sprout-volets 1
     [
       set shape "square"
       set color cyan
+      set isouvert 1
     ]
   ]
 
@@ -397,8 +578,76 @@ to setup
       set shape "bottle"
       set heading 0
       set color red
+      set quantitepoudre 100
     ]
   ]
+
+  ;;Création des capteurs génériques
+  ;;;CapteurTemperature
+  ;;;TODO
+  ;;;CapteurPorte
+  ;;;TODO
+  ;;;CapteurMovement
+  ;;;TODO
+  ;;;CapteurAllumage
+  ask turtles with [ breed = douches
+    or breed = toilettes
+    or breed = eviers
+    or breed = lits
+    or breed = cafetieres
+    or breed = stationroombas
+    or breed = roombas
+    or breed = lampes
+    or breed = microondes
+    or breed = fours
+    or breed = lavevaisselles
+    or breed = frigos
+    or breed = plaques
+    or breed = hottes
+    or breed = lavelinges
+    or breed = sechelinges
+    or breed = chauffages
+    or breed = alarmes
+    or breed = volets
+  ]
+  [
+    ;;Creation capteur
+    ask patch-here[
+      sprout-capteurallumages 1[
+        set shape "cylinder"
+        set color blue
+        set size 0.1
+        ;;Lien Capteur
+        create-capteurlink-to one-of other turtles-here with [ (breed = douches
+          or breed = toilettes
+          or breed = eviers
+          or breed = lits
+          or breed = cafetieres
+          or breed = stationroombas
+          or breed = roombas
+          or breed = lampes
+          or breed = microondes
+          or breed = fours
+          or breed = lavevaisselles
+          or breed = frigos
+          or breed = plaques
+          or breed = hottes
+          or breed = lavelinges
+          or breed = sechelinges
+          or breed = chauffages
+          or breed = alarmes
+          or breed = volets)
+          and count my-in-links = 0
+        ]
+        [
+          set nomdonneeaextraire "isactif"
+        ]
+      ]
+    ]
+
+
+  ]
+
 
 end
 @#$#@#$#@
