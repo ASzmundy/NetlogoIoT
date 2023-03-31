@@ -120,8 +120,8 @@ roombas-own [capacitesac tauxdesalete batterie isactif]
 breed [chauffages chauffage]
 chauffages-own [puissance temperatureambiante isactif]
 
-breed [climatisateurs climatisateur]
-climatisateurs-own [puissance temperatureambiante isactif]
+breed [climatiseurs climatiseur]
+climatiseurs-own [puissance temperatureambiante isactif]
 
 breed [lampes lampe]
 lampes-own [luminosite couleurlampe isactif]
@@ -527,12 +527,12 @@ to setup
       set isactif 0
     ]
   ]
-  ;;;Climatisateurs
+  ;;;climatiseurs
   ask patches with
   [
     pxcor = 16 and pycor = 2
   ][
-   sprout-climatisateurs 1[
+   sprout-climatiseurs 1[
       set shape "computer server"
       set color white
       set puissance 0
