@@ -1,5 +1,13 @@
+;EXTENSIONS
+extensions [time]
+
+
+
 ;VARIABLES GLOBALES
 globals[
+  ;;VARIABLES TEMPORAIRES CALCUL DATE
+  dtstring
+  dtstring2
   ;;STATIQUES
   ;;;Coordonnées
   Latitude
@@ -18,6 +26,7 @@ globals[
 
   ;;DYNAMIQUES
   ;;Date et heure
+  dt
   Jour
   Mois
   Annee
@@ -33,9 +42,9 @@ globals[
   LuminositePiecePrincipales
   LuminositeEntree
   LuminositeSdB
-  MouvementPiecePrincipales
-  MouvementEntree
-  MouvementSdB
+  TemperaturePiecePrincipales
+  TemperatureEntree
+  TemperatureSdB
   FumeePiecePrincipales
   FumeeEntree
   FumeeSdB
@@ -43,7 +52,6 @@ globals[
   COEntree
   COSdB
 ]
-
 
 ;TURTLES
 ;;Meubles non connectes
@@ -207,14 +215,89 @@ capteurlinks-own [
 ]
 
 ;;Links objets
-;;TODO
+;;;Link contenance
+directed-link-breed [ContientLinks ContientLink]
+
 ;;Links utilisateurs
-;;TODO
+;;;Porte
+directed-link-breed [PorteLinks PorteLink]
+;;;Utilise
+directed-link-breed [UtiliseLinks UtiliseLink]
+;;;Tache
+directed-link-breed [TacheLinks TacheLink]
+tachelinks-own[
+  priorite
+]
 
 
 ;SETUP
 to setup
   clear-all
+  ;; TODO Initialisation variables globales statiques
+
+  ;;TODO Initialisation variables globales dynamiques
+  ;;; Calcul date
+  ;;;; Récupération date
+  set dtstring date-and-time
+  ;;;;Conversion mois
+  ;;;;TODO Modifier en fonction du mois récupérer de dtstring
+  if substring dtstring 19 22 = "jan"[
+    set mois "01"
+  ]
+  if substring dtstring 19 22 = "fev"[
+    set mois "02"
+  ]
+  if substring dtstring 19 22 = "mar"[
+    set mois "03"
+  ]
+  if substring dtstring 19 22 = "avr"[
+    set mois "04"
+  ]
+  if substring dtstring 19 22 = "mai"[
+    set mois "05"
+  ]
+  if substring dtstring 19 22 = "jun"[
+    set mois "06"
+  ]
+  if substring dtstring 19 22 = "jui"[
+    set mois "07"
+  ]
+  if substring dtstring 19 22 = "aou"[
+    set mois "08"
+  ]
+  if substring dtstring 19 22 = "sep"[
+    set mois "09"
+  ]
+  if substring dtstring 19 22 = "oct"[
+    set mois "10"
+  ]
+  if substring dtstring 19 22 = "nov"[
+    set mois "11"
+  ]
+  if substring dtstring 19 22 = "dec"[
+    set mois "12"
+  ]
+
+  ;;;; Création datetime de l'extension date à partir de dtstring
+  set dtstring2 (word (substring dtstring 23 27) "-" mois "-" (substring dtstring 16 18) " " (substring dtstring 0 2) ":" (substring dtstring 3 5) ":" (substring dtstring 6 8))
+  set dt time:create dtstring2
+
+  ;;;; Affectation variables globales
+  set Annee time:get "year" dt
+  set Jour time:get "day" dt
+  set Heure time:get "hour" dt
+  ;;Conversion 12h vers 24
+  if substring dtstring 13 15 = "PM" [
+    set Heure Heure + 12
+  ]
+  set Minute time:get "minute" dt
+  set Seconde time:get "second" dt
+
+  ;;;TODO Calcul Température au lancement
+  set TemperaturePiecePrincipales 20
+  set TemperatureEntree 21
+  set TemperatureSdB 22
+
   import-pcolors "appart_petit.png"
 
   ;;Création des meubles (manuel)
@@ -295,9 +378,25 @@ to setup
     [
       set shape "drop"
       set color cyan
-      set temperatureeau 0 ;;TODO mettre à température intérieur
+      set temperatureeau 0
       set debit 0
       set isactif 0
+    ]
+    ;;;Gestion temperature
+    if any?(neighbors with [pcolor = 84.9])[
+      ask douches-here[
+        set temperatureeau TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask douches-here[
+        set temperatureeau TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask douches-here[
+        set temperatureeau TemperaturePiecePrincipales
+      ]
     ]
   ]
 
@@ -319,9 +418,24 @@ to setup
     [
       set shape "chess rook"
       set color white
-      set temperatureeau 0 ;;TODO mettre à température intérieur
+      set temperatureeau 0
       set debit 0
       set isactif 0
+    ]
+    if any?(neighbors with [pcolor = 84.9])[
+      ask eviers-here[
+        set temperatureeau TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask eviers-here[
+        set temperatureeau TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask eviers-here[
+        set temperatureeau TemperaturePiecePrincipales
+      ]
     ]
   ]
 
@@ -334,8 +448,23 @@ to setup
       set color black
       set capacitecafe 0
       set capaciteeau 100
-      set temperaturecafe 0 ;;TODO mettre à température intérieur
+      set temperaturecafe 0
       set isactif 0
+    ]
+    if any?(neighbors with [pcolor = 84.9])[
+      ask cafetieres-here[
+        set temperaturecafe TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask cafetieres-here[
+        set temperaturecafe TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask cafetieres-here[
+        set temperaturecafe TemperaturePiecePrincipales
+      ]
     ]
   ]
   ;;;;plaque
@@ -345,10 +474,26 @@ to setup
       set shape "molecule oxygen"
       set heading 0
       set color black
-      set temperature 0 ;;TODO mettre à température intérieur
+      set temperature 0
       set puissance 0
       set minuteur 0
       set isactif 0
+    ]
+    ;;;Gestion temperature
+    if any?(neighbors with [pcolor = 84.9])[
+      ask plaques-here[
+        set temperature TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask plaques-here[
+        set temperature TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask plaques-here[
+        set temperature TemperaturePiecePrincipales
+      ]
     ]
   ]
   ;;;;hotte
@@ -381,10 +526,26 @@ to setup
       set shape "square"
       set heading 0
       set color white
-      set temperature 0 ;;TODO mettre à température intérieur
+      set temperature 0
       set humidite 0
       set poidslinge 0
       set isactif 0
+    ]
+    ;;;Gestion temperature
+    if any?(neighbors with [pcolor = 84.9])[
+      ask sechelinges-here[
+        set temperature TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask sechelinges-here[
+        set temperature TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask sechelinges-here[
+        set temperature TemperaturePiecePrincipales
+      ]
     ]
   ]
   ;;;;four
@@ -396,9 +557,25 @@ to setup
       set color grey
       set modecuisson "Voute" ;;Peut être "Voute","Sole","Tournant"
       set puissance 0
-      set temperature 0 ;;TODO mettre à température intérieur
+      set temperature 0
       set minuteur 0
       set isactif 0
+    ]
+    ;;;Gestion temperature
+    if any?(neighbors with [pcolor = 84.9])[
+      ask fours-here[
+        set temperature TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask fours-here[
+        set temperature TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask fours-here[
+        set temperature TemperaturePiecePrincipales
+      ]
     ]
   ]
 
@@ -413,9 +590,25 @@ to setup
       set modecycle "Rincage" ;Peut être "Lavage","Rincage" et "Séchage"
       set dureerestante 0
       set nbpastilles 5
-      set temperatureeau 0 ;;TODO mettre à température intérieur
+      set temperatureeau 0
       set tauxsalete 0
       set isactif 0
+    ]
+    ;;;Gestion temperature
+    if any?(neighbors with [pcolor = 84.9])[
+      ask lavevaisselles-here[
+        set temperatureeau TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask lavevaisselles-here[
+        set temperatureeau TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask lavevaisselles-here[
+        set temperatureeau TemperaturePiecePrincipales
+      ]
     ]
   ]
 
@@ -523,8 +716,24 @@ to setup
       set shape "container"
       set color white
       set puissance 0
-      set temperatureambiante 0 ;;TODO mettre à température intérieur
+      set temperatureambiante 0
       set isactif 0
+    ]
+    ;;;Gestion temperature
+    if any?(neighbors with [pcolor = 84.9])[
+      ask chauffages-here[
+        set temperatureambiante TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask chauffages-here[
+        set temperatureambiante TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask chauffages-here[
+        set temperatureambiante TemperaturePiecePrincipales
+      ]
     ]
   ]
   ;;;climatiseurs
@@ -536,8 +745,24 @@ to setup
       set shape "computer server"
       set color white
       set puissance 0
-      set temperatureambiante 0 ;;TODO mettre à température intérieur
+      set temperatureambiante 0
       set isactif 0
+    ]
+    ;;;Gestion temperature
+    if any?(neighbors with [pcolor = 84.9])[
+      ask climatiseurs-here[
+        set temperatureambiante TemperatureSdB
+      ]
+    ]
+    if any?(neighbors with [pcolor = 64.7])[
+      ask climatiseurs-here[
+        set temperatureambiante TemperatureEntree
+      ]
+    ]
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ask climatiseurs-here[
+        set temperatureambiante TemperaturePiecePrincipales
+      ]
     ]
   ]
 
@@ -583,12 +808,62 @@ to setup
   ]
 
   ;;Création des capteurs génériques
+  ;;;CapteurCO
+  ask patches with [
+    (pxcor = 16 and pycor = 2)
+    or (pxcor = 10 and pycor = 7)
+  ][
+    sprout-capteurcos 1[
+      set shape "cylinder"
+      set color magenta
+      set size 0.1
+    ]
+  ]
+  ;;;CapteurFumee
+  ask patches with [
+    (pxcor = 16 and pycor = 5)
+  ][
+    sprout-capteurcos 1[
+      set shape "cylinder"
+      set color gray
+      set size 0.1
+    ]
+  ]
   ;;;CapteurTemperature
-  ;;;TODO
+  ask patches with [
+    (pxcor = 4 and pycor = 2)
+    or (pxcor = 4 and pycor = 6)
+    or (pxcor = 6 and pycor = 2)
+  ][
+    sprout-capteurcos 1[
+      set shape "cylinder"
+      set color green
+      set size 0.1
+    ]
+  ]
   ;;;CapteurPorte
-  ;;;TODO
-  ;;;CapteurMovement
-  ;;;TODO
+  ask patches with [
+    pcolor = 6.3
+  ][
+    sprout-capteurportes 1[
+      set shape "cylinder"
+      set color blue
+      set size 0.1
+    ]
+  ]
+  ;;;CapteurMouvement
+  ask patches with [
+    (pxcor = 4 and pycor = 8)
+    or (pxcor = 10 and pycor = 5)
+    or (pxcor = 12 and pycor = 3)
+    or (pxcor = 4 and pycor = 4)
+  ][
+    sprout-capteurmouvements 1[
+      set shape "cylinder"
+      set color blue
+      set size 0.1
+    ]
+  ]
   ;;;CapteurAllumage
   ask turtles with [ breed = douches
     or breed = toilettes
@@ -644,8 +919,6 @@ to setup
         ]
       ]
     ]
-
-
   ]
 
 
@@ -679,10 +952,10 @@ ticks
 30.0
 
 BUTTON
-63
-34
-126
-67
+65
+35
+128
+68
 NIL
 setup
 NIL
@@ -694,6 +967,72 @@ NIL
 NIL
 NIL
 1
+
+MONITOR
+908
+679
+965
+724
+NIL
+jour
+0
+1
+11
+
+MONITOR
+762
+739
+819
+784
+NIL
+heure
+0
+1
+11
+
+MONITOR
+832
+679
+889
+724
+NIL
+mois
+0
+1
+11
+
+MONITOR
+761
+680
+818
+725
+année
+annee
+17
+1
+11
+
+MONITOR
+836
+739
+893
+784
+minutes
+minute
+17
+1
+11
+
+MONITOR
+906
+738
+971
+783
+secondes
+seconde
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
