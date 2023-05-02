@@ -1,56 +1,56 @@
 ;EXTENSIONS
-extensions [time]
-
+extensions [time csv]
 
 
 ;VARIABLES GLOBALES
 globals[
-  ;;VARIABLES TEMPORAIRES CALCUL DATE
-  dtstring
-  dtstring2
   ;;STATIQUES
-  ;;;Coordonnées
-  Latitude
-  Longitude
-  ;;;Températures/Saison
-  MinTempHiver
-  MaxTempHiver
-  MinTempPrintemps
-  MaxTempPrintemps
-  MinTempEte
-  MaxTempEte
-  MinTempAutomne
-  MaxTempAutomne
+
+  ;;;Températures/Saison (HUD)
+  ;MinTempHiver
+  ;MaxTempHiver
+  ;MinTempPrintemps
+  ;MaxTempPrintemps
+  ;MinTempEte
+  ;MaxTempEte
+  ;MinTempAutomne
+  ;MaxTempAutomne
   ;;;Utilisateur
   TypeHandicap
 
   ;;DYNAMIQUES
   ;;Date et heure
-  dt
+  DateActuelle
   Jour
   Mois
   Annee
   Heure
   Minute
   Seconde
-  ;;Extérieur
-  LuminositeExterieure
-  TempératureExterieure
-  HeureLeverSoleil
-  HeureCoucherSoleil
-  ;;Intérieur
-  LuminositePiecePrincipales
-  LuminositeEntree
-  LuminositeSdB
-  TemperaturePiecePrincipales
-  TemperatureEntree
-  TemperatureSdB
+  Saison
+
   FumeePiecePrincipales
   FumeeEntree
   FumeeSdB
   COPiecePrincipales
   COEntree
   COSdB
+  ;;Gestion température
+  TemperaturePiecePrincipales
+  TemperatureEntree
+  TemperatureSdB
+  TemperatureExterieur
+  TemperatureExterieurCibleMin ;;Température minimum de la journée
+  TemperatureExterieurCibleMax ;;Température maximum de la journée
+  ;;Gestion luminosité
+  LuminositePiecePrincipales
+  LuminositeEntree
+  LuminositeSdB
+  LuminositeExterieur
+  HeureLeverSoleil
+  HeureCoucherSoleil
+  HeureLeverSoleilTime
+  HeureCoucherSoleilTime
 ]
 
 ;TURTLES
@@ -238,9 +238,9 @@ to setup
   ;;TODO Initialisation variables globales dynamiques
   ;;; Calcul date
   ;;;; Récupération date
-  set dtstring date-and-time
+  let dtstring date-and-time
   ;;;;Conversion mois
-  ;;;;TODO Modifier en fonction du mois récupérer de dtstring
+  ;;;;TODO Modifier en fonction du mois récupéré de dtstring
   if substring dtstring 19 22 = "jan"[
     set mois "01"
   ]
@@ -279,25 +279,161 @@ to setup
   ]
 
   ;;;; Création datetime de l'extension date à partir de dtstring
-  set dtstring2 (word (substring dtstring 23 27) "-" mois "-" (substring dtstring 16 18) " " (substring dtstring 0 2) ":" (substring dtstring 3 5) ":" (substring dtstring 6 8))
-  set dt time:create dtstring2
+  let dtstring2 (word (substring dtstring 23 27) "-" mois "-" (substring dtstring 16 18) " " (substring dtstring 0 2) ":" (substring dtstring 3 5) ":" (substring dtstring 6 8))
+  let dt time:create dtstring2
 
   ;;;; Affectation variables globales
   set Annee time:get "year" dt
   set Jour time:get "day" dt
-  set Heure time:get "hour" dt
-  ;;Conversion 12h vers 24
+  set Mois time:get "month" dt
+  ;;;;; Conversion 12h vers 24
   if substring dtstring 13 15 = "PM" [
-    set Heure Heure + 12
+    set dt time:plus dt 12 "hours"
   ]
+  set Heure time:get "hour" dt
   set Minute time:get "minute" dt
   set Seconde time:get "second" dt
+  set DateActuelle dt
 
-  ;;;TODO Calcul Température au lancement
-  set TemperaturePiecePrincipales 20
-  set TemperatureEntree 21
-  set TemperatureSdB 22
+  ;;; Calcul Saison
+  if (mois = 12 and jour >= 21) or mois = 1 or mois = 2 or (mois = 3 and jour < 20)[
+   set Saison "Hiver"
+  ]
+  if (mois = 3 and jour >= 21) or mois = 4 or mois = 5 or (mois = 6 and jour < 20)[
+   set Saison "Printemps"
+  ]
+  if (mois = 6 and jour >= 21) or mois = 7 or mois = 8 or (mois = 9 and jour < 20)[
+   set Saison "Ete"
+  ]
+  if (mois = 9 and jour >= 21) or mois = 10 or mois = 11 or (mois = 12 and jour < 20)[
+   set Saison "Automne"
+  ]
 
+
+  ;;; Calcul Température au lancement
+  ;;;; Choix de la température de la journée en fonction de la saison
+  ;;;; TODO Améliorer le choix de la température de la journée pour la faire varier un peu plus
+  if saison = "Hiver" [
+   set TemperatureExterieurCibleMin MinTempHiver + (random ((MaxTempHiver - MinTempHiver) / 10))
+   set TemperatureExterieurCibleMax MaxTempHiver - (random ((MaxTempHiver - MinTempHiver) / 10))
+  ]
+  if saison = "Printemps" [
+   set TemperatureExterieurCibleMin MinTempPrintemps + (random ((MaxTempPrintemps - MinTempPrintemps) / 10))
+   set TemperatureExterieurCibleMax MaxTempPrintemps - (random ((MaxTempPrintemps - MinTempPrintemps) / 10))
+  ]
+  if saison = "Ete" [
+   set TemperatureExterieurCibleMin MinTempEte + (random ((MaxTempEte - MinTempEte) / 10))
+   set TemperatureExterieurCibleMax MaxTempEte - (random ((MaxTempEte - MinTempEte) / 10))
+  ]
+  if saison = "Automne" [
+   set TemperatureExterieurCibleMin MinTempAutomne + (random ((MaxTempAutomne - MinTempAutomne) / 2))
+   set TemperatureExterieurCibleMax MaxTempAutomne - (random ((MaxTempAutomne - MinTempAutomne) / 2))
+  ]
+  ;;;; Affectation des températures en fonction de la température cible
+  set TemperatureExterieur TemperatureExterieurCibleMin + (TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) * (Heure - 3) / (16 - 3)
+  set TemperaturePiecePrincipales TemperatureExterieur
+  set TemperatureEntree TemperatureExterieur
+  set TemperatureSdB TemperatureExterieur
+
+
+  ;;;Gestion de la luminosité
+  ;;;; Lecture fichier Ephéméride
+  file-open "config/ephemeride.csv"
+  let lignetrouve false
+  while [not lignetrouve or not file-at-end?][
+    let ligne (csv:from-row file-read-line ";")
+    if first ligne = Jour [
+      set lignetrouve true
+      ;;;;;Lecture données Janvier
+      if mois = 1 [
+        set HeureLeverSoleil (item 1 ligne)
+        set HeureCoucherSoleil (item 2 ligne)
+      ]
+      ;;;;;Lecture données Février
+      if mois = 2 [
+        set HeureLeverSoleil (item 3 ligne)
+        set HeureCoucherSoleil (item 4 ligne)
+      ]
+      ;;;;;Lecture données Mars
+      if mois = 3 [
+        set HeureLeverSoleil (item 5 ligne)
+        set HeureCoucherSoleil (item 6 ligne)
+      ]
+      ;;;;;Lecture données Avril
+      if mois = 4 [
+        set HeureLeverSoleil (item 7 ligne)
+        set HeureCoucherSoleil (item 8 ligne)
+      ]
+      ;;;;;Lecture données Mai
+      if mois = 5 [
+        set HeureLeverSoleil (item 9 ligne)
+        set HeureCoucherSoleil (item 10 ligne)
+      ]
+      ;;;;;Lecture données Juin
+      if mois = 6 [
+        set HeureLeverSoleil (item 11 ligne)
+        set HeureCoucherSoleil (item 12 ligne)
+      ]
+      ;;;;;Lecture données Juillet
+      if mois = 7 [
+        set HeureLeverSoleil (item 13 ligne)
+        set HeureCoucherSoleil (item 14 ligne)
+      ]
+      ;;;;;Lecture données Aout
+      if mois = 8 [
+        set HeureLeverSoleil (item 15 ligne)
+        set HeureCoucherSoleil (item 16 ligne)
+      ]
+      ;;;;;Lecture données Septembre
+      if mois = 9 [
+        set HeureLeverSoleil (item 17 ligne)
+        set HeureCoucherSoleil (item 18 ligne)
+      ]
+      ;;;;;Lecture données Octobre
+      if mois = 10 [
+        set HeureLeverSoleil (item 19 ligne)
+        set HeureCoucherSoleil (item 20 ligne)
+      ]
+      ;;;;;Lecture données Novembre
+      if mois = 11 [
+        set HeureLeverSoleil (item 21 ligne)
+        set HeureCoucherSoleil (item 22 ligne)
+      ]
+      ;;;;;Lecture données Décembre
+      if mois = 12 [
+        set HeureLeverSoleil (item 23 ligne)
+        set HeureCoucherSoleil (item 24 ligne)
+      ]
+    ]
+  ]
+  file-close
+
+  ;;;;Formatage données temporelles vers time
+  ;;;;; Formatage heures en HH:mm
+  if length (word HeureLeverSoleil) < 4 [
+   set HeureLeverSoleil (word "0" HeureLeverSoleil)
+  ]
+  if length (word HeureCoucherSoleil) < 4 [
+   set HeureCoucherSoleil (word "0" HeureLeverSoleil)
+  ]
+  set HeureLeverSoleil (word (substring (word HeureLeverSoleil) 0 2) ":" (substring (word HeureLeverSoleil) 2 4))
+  set HeureCoucherSoleil (word (substring (word HeureCoucherSoleil) 0 2) ":" (substring (word HeureCoucherSoleil) 2 4))
+
+  set HeureLeverSoleilTime time:create (word Annee "-" Mois "-" Jour " " HeureLeverSoleil)
+  set HeureCoucherSoleilTime time:create (word Annee "-" Mois "-" Jour " " HeureCoucherSoleil)
+
+  ;;;;TODO GESTION HEURE ETE/HIVER
+  ;ifelse (DateActuelle < HeureCoucherSoleilTime and DateActuelle > HeureLeverSoleilTime)
+  ifelse (time:is-before? DateActuelle HeureCoucherSoleilTime and time:is-after? DateActuelle HeureLeverSoleilTime) [
+    set LuminositeExterieur MaxLuminosite
+  ] [
+    set LuminositeExterieur (LuminositeExterieur - (MaxLuminosite / (24 - HeureCoucherSoleil)))
+  ]
+
+
+
+
+  ;;Chargement des couleurs de patchs
   import-pcolors "appart_petit.png"
 
   ;;Création des meubles (manuel)
@@ -925,13 +1061,13 @@ to setup
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-430
+668
 15
 1450
-642
+497
 -1
 -1
-56.22222222222222
+43.0
 1
 10
 1
@@ -952,10 +1088,10 @@ ticks
 30.0
 
 BUTTON
-65
-35
-128
-68
+22
+13
+85
+46
 NIL
 setup
 NIL
@@ -969,10 +1105,10 @@ NIL
 1
 
 MONITOR
-908
-679
-965
-724
+946
+518
+1003
+563
 NIL
 jour
 0
@@ -980,10 +1116,10 @@ jour
 11
 
 MONITOR
-762
-739
-819
-784
+946
+567
+1003
+612
 NIL
 heure
 0
@@ -991,10 +1127,10 @@ heure
 11
 
 MONITOR
-832
-679
-889
-724
+1013
+517
+1070
+562
 NIL
 mois
 0
@@ -1002,10 +1138,10 @@ mois
 11
 
 MONITOR
-761
-680
-818
-725
+1078
+517
+1135
+562
 année
 annee
 17
@@ -1013,10 +1149,10 @@ annee
 11
 
 MONITOR
-836
-739
-893
-784
+1013
+568
+1070
+613
 minutes
 minute
 17
@@ -1024,15 +1160,331 @@ minute
 11
 
 MONITOR
-906
-738
-971
-783
+1077
+568
+1142
+613
 secondes
 seconde
 17
 1
 11
+
+MONITOR
+760
+18
+845
+63
+Température
+TemperatureSdb
+17
+1
+11
+
+MONITOR
+670
+450
+755
+495
+Température
+TemperatureEntree
+17
+1
+11
+
+MONITOR
+1129
+21
+1219
+66
+Température
+TemperaturePiecePrincipales
+17
+1
+11
+
+MONITOR
+519
+58
+661
+103
+NIL
+TemperatureExterieur
+17
+1
+11
+
+TEXTBOX
+100
+263
+250
+281
+Températures
+11
+0.0
+1
+
+SLIDER
+13
+290
+136
+323
+MinTempHiver
+MinTempHiver
+-50
+MaxTempHiver
+-14.0
+1
+1
+°C
+HORIZONTAL
+
+TEXTBOX
+332
+296
+482
+314
+Hiver
+11
+85.0
+1
+
+SLIDER
+142
+290
+268
+323
+MaxTempHiver
+MaxTempHiver
+MinTempHiver
+50
+30.0
+1
+1
+°C
+HORIZONTAL
+
+TEXTBOX
+331
+335
+481
+353
+Printemps
+11
+65.0
+1
+
+SLIDER
+156
+327
+304
+360
+MaxTempPrintemps
+MaxTempPrintemps
+MinTempPrintemps
+50
+19.0
+1
+1
+°C
+HORIZONTAL
+
+SLIDER
+12
+327
+145
+360
+MinTempPrintemps
+MinTempPrintemps
+-50
+MaxTempPrintemps
+4.0
+1
+1
+°C
+HORIZONTAL
+
+TEXTBOX
+336
+375
+486
+393
+Eté
+11
+45.0
+1
+
+SLIDER
+26
+369
+149
+402
+MinTempEte
+MinTempEte
+-50
+MaxTempEte
+11.0
+1
+1
+°C
+HORIZONTAL
+
+SLIDER
+172
+371
+294
+404
+MaxTempEte
+MaxTempEte
+MinTempEte
+50
+30.0
+1
+1
+°C
+HORIZONTAL
+
+SLIDER
+20
+410
+162
+443
+MinTempAutomne
+MinTempAutomne
+-50
+MaxTempAutomne
+-5.0
+1
+1
+°C
+HORIZONTAL
+
+SLIDER
+176
+409
+323
+442
+MaxTempAutomne
+MaxTempAutomne
+MinTempAutomne
+50
+15.5231
+1
+1
+°C
+HORIZONTAL
+
+TEXTBOX
+335
+417
+485
+435
+Automne
+11
+24.0
+1
+
+MONITOR
+1182
+540
+1294
+585
+NIL
+Saison
+17
+1
+11
+
+MONITOR
+532
+114
+653
+159
+NIL
+LuminositeExterieur
+17
+1
+11
+
+MONITOR
+847
+17
+914
+62
+Luminosité
+LuminositeSdb
+17
+1
+11
+
+MONITOR
+847
+449
+908
+494
+Luminosité
+LuminositeEntree
+17
+1
+11
+
+MONITOR
+1219
+21
+1290
+66
+Luminosité
+LuminositePiecePrincipales
+17
+1
+11
+
+SLIDER
+37
+148
+209
+181
+MaxLuminosite
+MaxLuminosite
+0
+20000
+20000.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+16
+190
+124
+235
+NIL
+HeureLeverSoleil
+17
+1
+11
+
+MONITOR
+129
+190
+249
+235
+NIL
+HeureCoucherSoleil
+17
+1
+11
+
+TEXTBOX
+94
+120
+244
+138
+Luminosité
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
