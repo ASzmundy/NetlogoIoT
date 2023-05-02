@@ -6,21 +6,10 @@ extensions [time csv]
 globals[
   ;;STATIQUES
 
-  ;;;Températures/Saison (HUD)
-  ;MinTempHiver
-  ;MaxTempHiver
-  ;MinTempPrintemps
-  ;MaxTempPrintemps
-  ;MinTempEte
-  ;MaxTempEte
-  ;MinTempAutomne
-  ;MaxTempAutomne
-  ;;;Utilisateur
-  TypeHandicap
-
   ;;DYNAMIQUES
-  ;;Date et heure
-  DateActuelle
+
+  ;;;Date et heure
+  dateTimeActuel
   Jour
   Mois
   Annee
@@ -29,20 +18,23 @@ globals[
   Seconde
   Saison
 
+  ;;;Gestion particules
   FumeePiecePrincipales
   FumeeEntree
   FumeeSdB
   COPiecePrincipales
   COEntree
   COSdB
-  ;;Gestion température
+
+  ;;;Gestion température
   TemperaturePiecePrincipales
   TemperatureEntree
   TemperatureSdB
   TemperatureExterieur
-  TemperatureExterieurCibleMin ;;Température minimum de la journée
-  TemperatureExterieurCibleMax ;;Température maximum de la journée
-  ;;Gestion luminosité
+  TemperatureExterieurCibleMin ;;;;Température minimum de la journée
+  TemperatureExterieurCibleMax ;;;;Température maximum de la journée
+
+  ;;;Gestion luminosité
   LuminositePiecePrincipales
   LuminositeEntree
   LuminositeSdB
@@ -51,10 +43,11 @@ globals[
   HeureCoucherSoleil
   HeureLeverSoleilTime
   HeureCoucherSoleilTime
+  isNuit ;;;; True si Nuit/Aube False si Jour/Crépuscule
 ]
 
-;TURTLES
-;;Meubles non connectes
+;DECLARATION TURTLES
+;;Meubles non connectés
 breed [tables table]
 
 breed [chaises chaise]
@@ -202,12 +195,12 @@ breed [CapteurLaveLinges CapteurLaveLinge]
 breed [CapteurChauffages CapteurChauffage]
 breed [CapteurClims CapteurClim]
 
+;; TODO Utilisateur
 
 
 
 
-
-;LINKS
+; DECLARATION LINKS
 ;;Links capteurs
 directed-link-breed [CapteurLinks CapteurLink]
 capteurlinks-own [
@@ -228,14 +221,100 @@ directed-link-breed [TacheLinks TacheLink]
 tachelinks-own[
   priorite
 ]
+; TODO FONCTIONS POUR SETUP
+;; Lecture fichier éphéméride
+to readEphemeride [monthToRead dayToRead]
+  file-open "config/ephemeride.csv"
+  let lignetrouve false
+  while [not lignetrouve or not file-at-end?][
+    let ligne (csv:from-row file-read-line ";")
+    if first ligne = dayToRead [
+      set lignetrouve true
+      ;;;Lecture données Janvier
+      if monthToRead = 1 [
+        set HeureLeverSoleil (item 1 ligne)
+        set HeureCoucherSoleil (item 2 ligne)
+      ]
+      ;;;Lecture données Février
+      if monthToRead = 2 [
+        set HeureLeverSoleil (item 3 ligne)
+        set HeureCoucherSoleil (item 4 ligne)
+      ]
+      ;;;Lecture données Mars
+      if monthToRead = 3 [
+        set HeureLeverSoleil (item 5 ligne)
+        set HeureCoucherSoleil (item 6 ligne)
+      ]
+      ;;;Lecture données Avril
+      if monthToRead = 4 [
+        set HeureLeverSoleil (item 7 ligne)
+        set HeureCoucherSoleil (item 8 ligne)
+      ]
+      ;;;Lecture données Mai
+      if monthToRead = 5 [
+        set HeureLeverSoleil (item 9 ligne)
+        set HeureCoucherSoleil (item 10 ligne)
+      ]
+      ;;;Lecture données Juin
+      if monthToRead = 6 [
+        set HeureLeverSoleil (item 11 ligne)
+        set HeureCoucherSoleil (item 12 ligne)
+      ]
+      ;;;Lecture données Juillet
+      if monthToRead = 7 [
+        set HeureLeverSoleil (item 13 ligne)
+        set HeureCoucherSoleil (item 14 ligne)
+      ]
+      ;;;Lecture données Aout
+      if monthToRead = 8 [
+        set HeureLeverSoleil (item 15 ligne)
+        set HeureCoucherSoleil (item 16 ligne)
+      ]
+      ;;;Lecture données Septembre
+      if monthToRead = 9 [
+        set HeureLeverSoleil (item 17 ligne)
+        set HeureCoucherSoleil (item 18 ligne)
+      ]
+      ;;;Lecture données Octobre
+      if monthToRead = 10 [
+        set HeureLeverSoleil (item 19 ligne)
+        set HeureCoucherSoleil (item 20 ligne)
+      ]
+      ;;;Lecture données Novembre
+      if monthToRead = 11 [
+        set HeureLeverSoleil (item 21 ligne)
+        set HeureCoucherSoleil (item 22 ligne)
+      ]
+      ;;;Lecture données Décembre
+      if monthToRead = 12 [
+        set HeureLeverSoleil (item 23 ligne)
+        set HeureCoucherSoleil (item 24 ligne)
+      ]
+    ]
+  ]
+  file-close
 
+  ;;; Formatage données temporelles de l'éphéméride vers objet time
+  ;;;; Formatage heures en HH:mm
+  if length (word HeureLeverSoleil) < 4 [
+   set HeureLeverSoleil (word "0" HeureLeverSoleil)
+  ]
+  if length (word HeureCoucherSoleil) < 4 [
+   set HeureCoucherSoleil (word "0" HeureLeverSoleil)
+  ]
+  set HeureLeverSoleil (word (substring (word HeureLeverSoleil) 0 2) ":" (substring (word HeureLeverSoleil) 2 4))
+  set HeureCoucherSoleil (word (substring (word HeureCoucherSoleil) 0 2) ":" (substring (word HeureCoucherSoleil) 2 4))
 
-;SETUP
+  set HeureLeverSoleilTime time:create (word Annee "-" Mois "-" Jour " " HeureLeverSoleil)
+  set HeureCoucherSoleilTime time:create (word Annee "-" Mois "-" Jour " " HeureCoucherSoleil)
+end
+
+;FONCTION SETUP
 to setup
   clear-all
-  ;; TODO Initialisation variables globales statiques
+  reset-ticks
 
-  ;;TODO Initialisation variables globales dynamiques
+  ;;Initialisation variables globales dynamiques
   ;;; Calcul date
   ;;;; Récupération date
   let dtstring date-and-time
@@ -293,7 +372,7 @@ to setup
   set Heure time:get "hour" dt
   set Minute time:get "minute" dt
   set Seconde time:get "second" dt
-  set DateActuelle dt
+  set dateTimeActuel dt
 
   ;;; Calcul Saison
   if (mois = 12 and jour >= 21) or mois = 1 or mois = 2 or (mois = 3 and jour < 20)[
@@ -338,98 +417,31 @@ to setup
 
   ;;;Gestion de la luminosité
   ;;;; Lecture fichier Ephéméride
-  file-open "config/ephemeride.csv"
-  let lignetrouve false
-  while [not lignetrouve or not file-at-end?][
-    let ligne (csv:from-row file-read-line ";")
-    if first ligne = Jour [
-      set lignetrouve true
-      ;;;;;Lecture données Janvier
-      if mois = 1 [
-        set HeureLeverSoleil (item 1 ligne)
-        set HeureCoucherSoleil (item 2 ligne)
-      ]
-      ;;;;;Lecture données Février
-      if mois = 2 [
-        set HeureLeverSoleil (item 3 ligne)
-        set HeureCoucherSoleil (item 4 ligne)
-      ]
-      ;;;;;Lecture données Mars
-      if mois = 3 [
-        set HeureLeverSoleil (item 5 ligne)
-        set HeureCoucherSoleil (item 6 ligne)
-      ]
-      ;;;;;Lecture données Avril
-      if mois = 4 [
-        set HeureLeverSoleil (item 7 ligne)
-        set HeureCoucherSoleil (item 8 ligne)
-      ]
-      ;;;;;Lecture données Mai
-      if mois = 5 [
-        set HeureLeverSoleil (item 9 ligne)
-        set HeureCoucherSoleil (item 10 ligne)
-      ]
-      ;;;;;Lecture données Juin
-      if mois = 6 [
-        set HeureLeverSoleil (item 11 ligne)
-        set HeureCoucherSoleil (item 12 ligne)
-      ]
-      ;;;;;Lecture données Juillet
-      if mois = 7 [
-        set HeureLeverSoleil (item 13 ligne)
-        set HeureCoucherSoleil (item 14 ligne)
-      ]
-      ;;;;;Lecture données Aout
-      if mois = 8 [
-        set HeureLeverSoleil (item 15 ligne)
-        set HeureCoucherSoleil (item 16 ligne)
-      ]
-      ;;;;;Lecture données Septembre
-      if mois = 9 [
-        set HeureLeverSoleil (item 17 ligne)
-        set HeureCoucherSoleil (item 18 ligne)
-      ]
-      ;;;;;Lecture données Octobre
-      if mois = 10 [
-        set HeureLeverSoleil (item 19 ligne)
-        set HeureCoucherSoleil (item 20 ligne)
-      ]
-      ;;;;;Lecture données Novembre
-      if mois = 11 [
-        set HeureLeverSoleil (item 21 ligne)
-        set HeureCoucherSoleil (item 22 ligne)
-      ]
-      ;;;;;Lecture données Décembre
-      if mois = 12 [
-        set HeureLeverSoleil (item 23 ligne)
-        set HeureCoucherSoleil (item 24 ligne)
-      ]
-    ]
-  ]
-  file-close
-
-  ;;;;Formatage données temporelles vers time
-  ;;;;; Formatage heures en HH:mm
-  if length (word HeureLeverSoleil) < 4 [
-   set HeureLeverSoleil (word "0" HeureLeverSoleil)
-  ]
-  if length (word HeureCoucherSoleil) < 4 [
-   set HeureCoucherSoleil (word "0" HeureLeverSoleil)
-  ]
-  set HeureLeverSoleil (word (substring (word HeureLeverSoleil) 0 2) ":" (substring (word HeureLeverSoleil) 2 4))
-  set HeureCoucherSoleil (word (substring (word HeureCoucherSoleil) 0 2) ":" (substring (word HeureCoucherSoleil) 2 4))
-
-  set HeureLeverSoleilTime time:create (word Annee "-" Mois "-" Jour " " HeureLeverSoleil)
-  set HeureCoucherSoleilTime time:create (word Annee "-" Mois "-" Jour " " HeureCoucherSoleil)
+  readEphemeride mois jour
 
   ;;;;TODO GESTION HEURE ETE/HIVER
-  ;ifelse (DateActuelle < HeureCoucherSoleilTime and DateActuelle > HeureLeverSoleilTime)
-  ifelse (time:is-before? DateActuelle HeureCoucherSoleilTime and time:is-after? DateActuelle HeureLeverSoleilTime) [
-    set LuminositeExterieur MaxLuminosite
-  ] [
-    set LuminositeExterieur (LuminositeExterieur - (MaxLuminosite / (24 - HeureCoucherSoleil)))
-  ]
 
+  ;;;; Initialisation variable Luminosité extérieur
+  ;;;;; Si avant lever soleil ou après coucher soleil alors nuit noire
+  if (time:is-before? dateTimeActuel (time:plus HeureLeverSoleilTime -45 "minutes") or time:is-after? dateTimeActuel (time:plus HeureCoucherSoleilTime 45 "minutes")) [
+    set LuminositeExterieur 0
+    set isNuit true
+  ]
+  ;;;;; Si après lever soleil ou avant coucher soleil alors jour
+  if (time:is-after? dateTimeActuel (time:plus HeureLeverSoleilTime 45 "minutes") or time:is-before? dateTimeActuel (time:plus HeureCoucherSoleilTime -45 "minutes")) [
+    set LuminositeExterieur MaxLuminosite
+    set isNuit false
+  ]
+  ;;;;; Si aube
+  if (time:is-before? dateTimeActuel HeureLeverSoleilTime and time:is-after? dateTimeActuel (time:plus HeureLeverSoleilTime -45 "minutes")) [
+    set LuminositeExterieur (time:difference-between dateTimeActuel HeureLeverSoleilTime "seconds") * (MaxLuminosite / 2700)
+    set isNuit true
+  ]
+  ;;;;; Si crépuscule
+  if (time:is-after? dateTimeActuel HeureCoucherSoleilTime and time:is-before? dateTimeActuel (time:plus HeureCoucherSoleilTime 45 "minutes")) [
+    set LuminositeExterieur MaxLuminosite - (time:difference-between dateTimeActuel HeureLeverSoleilTime "seconds") * (MaxLuminosite / 2700)
+    set isNuit false
+  ]
 
 
 
@@ -481,7 +493,7 @@ to setup
       set heading 0
       set color brown
       set qualitesommeil 0
-      set isactif 0
+      set isactif false
     ]
   ]
 
@@ -516,7 +528,7 @@ to setup
       set color cyan
       set temperatureeau 0
       set debit 0
-      set isactif 0
+      set isactif false
     ]
     ;;;Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
@@ -544,7 +556,7 @@ to setup
       set color cyan
       set capacitereservoir 100
       set debitremplissage 0
-      set isactif 0
+      set isactif false
     ]
   ]
 
@@ -556,7 +568,7 @@ to setup
       set color white
       set temperatureeau 0
       set debit 0
-      set isactif 0
+      set isactif false
     ]
     if any?(neighbors with [pcolor = 84.9])[
       ask eviers-here[
@@ -585,7 +597,7 @@ to setup
       set capacitecafe 0
       set capaciteeau 100
       set temperaturecafe 0
-      set isactif 0
+      set isactif false
     ]
     if any?(neighbors with [pcolor = 84.9])[
       ask cafetieres-here[
@@ -613,7 +625,7 @@ to setup
       set temperature 0
       set puissance 0
       set minuteur 0
-      set isactif 0
+      set isactif false
     ]
     ;;;Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
@@ -640,7 +652,7 @@ to setup
       set heading 0
       set color grey
       set puissance 0
-      set isactif 0
+      set isactif false
     ]
   ]
   ;;;;lave-linge
@@ -652,7 +664,7 @@ to setup
       set color black
       set degresalissure 0
       set poidslinge 0
-      set isactif 0
+      set isactif false
     ]
   ]
   ;;;;sèche-linge
@@ -665,7 +677,7 @@ to setup
       set temperature 0
       set humidite 0
       set poidslinge 0
-      set isactif 0
+      set isactif false
     ]
     ;;;Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
@@ -695,7 +707,7 @@ to setup
       set puissance 0
       set temperature 0
       set minuteur 0
-      set isactif 0
+      set isactif false
     ]
     ;;;Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
@@ -728,7 +740,7 @@ to setup
       set nbpastilles 5
       set temperatureeau 0
       set tauxsalete 0
-      set isactif 0
+      set isactif false
     ]
     ;;;Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
@@ -761,7 +773,7 @@ to setup
       set nombrelegumes 10
       set nombreviandes 10
       set nombrerepas 0
-      set isactif 1
+      set isactif true
     ]
   ]
   ;;;;panier à linge
@@ -783,7 +795,7 @@ to setup
       set color grey + 3
       set puissance 0
       set minuteur 0
-      set isactif 0
+      set isactif false
     ]
   ]
   ;;;;bibliothèque
@@ -804,7 +816,7 @@ to setup
       set shape "circle 2"
       set color grey
       set isroombaonstation 1
-      set isactif 0
+      set isactif false
     ]
   ]
   ;;;;Roomba
@@ -817,7 +829,7 @@ to setup
       set capacitesac 0
       set tauxdesalete 0
       set batterie 100
-      set isactif 0
+      set isactif false
     ]
   ]
 
@@ -838,7 +850,7 @@ to setup
       set size 0.6
       set luminosite 250
       set couleurlampe 2700 ;en K ;TODO Couleurs lampes différentes selon pièces
-      set isactif 0
+      set isactif false
     ]
   ]
   ;;;Chauffages
@@ -853,7 +865,7 @@ to setup
       set color white
       set puissance 0
       set temperatureambiante 0
-      set isactif 0
+      set isactif false
     ]
     ;;;Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
@@ -882,7 +894,7 @@ to setup
       set color white
       set puissance 0
       set temperatureambiante 0
-      set isactif 0
+      set isactif false
     ]
     ;;;Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
@@ -911,7 +923,7 @@ to setup
       set shape "coin tails"
       set color white
       set size 0.7
-      set isactif 0
+      set isactif false
     ]
   ]
 
@@ -921,13 +933,13 @@ to setup
     [
       set shape "square 2"
       set color cyan
-      set isouvert 0
+      set isouvert false
     ]
     sprout-volets 1
     [
       set shape "square"
       set color cyan
-      set isouvert 1
+      set isouvert true
     ]
   ]
 
@@ -1057,8 +1069,216 @@ to setup
     ]
   ]
 
-
+  ;; Initialisation variable Luminosité intérieur
+  ;;; Si il y a au moins un volet ouvert, luminosité pièce = luminosité extérieur
+  ask volets with [isouvert = true][
+    ;; Si volet entrée
+    if any? (neighbors with [pcolor = 64.7])[
+      set LuminositeEntree LuminositeExterieur
+    ]
+    ;; Si volet pièce principale
+    if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      set LuminositePiecePrincipales LuminositeExterieur
+    ]
+    ;; Si volet à côté de patch marron, regarder les patchs à côté
+    if any? (neighbors with [pcolor = 23.3])[
+      let piecevolet ""
+      ask neighbors with [pcolor = 23.3][
+        if any? (neighbors with [pcolor = 64.7])[
+          set piecevolet "E" ;Entrée
+        ]
+        if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+          set piecevolet "PP" ;Pièces principales
+        ]
+      ]
+      if piecevolet = "E" [
+        set LuminositeEntree LuminositeExterieur
+      ]
+      if piecevolet = "PP" [
+        set LuminositePiecePrincipales LuminositeExterieur
+      ]
+    ]
+  ]
 end
+;FIN SETUP
+
+
+;FONCTIONS POUR GO
+;; Incrémentation dateTimeActuel de 1 seconde
+to incrementOneSecond
+  set dateTimeActuel time:plus dateTimeActuel 1 "second"
+  set annee time:get "year" dateTimeActuel
+  set jour time:get "day" dateTimeActuel
+  set mois time:get "month" dateTimeActuel
+
+  set heure time:get "hour" dateTimeActuel
+  set minute time:get "minute" dateTimeActuel
+  set seconde time:get "second" dateTimeActuel
+end
+
+;; Passage jour suivant
+to newDay
+  ;;;Définition éphéméride du jour
+  readEphemeride mois jour
+end
+
+; GO
+to go
+  ;; Gestion nouvelle journée
+  if heure = 0 and minute = 0 and seconde = 0 [
+    newDay
+
+  ]
+
+  ;;Gestion de la lumière
+  ;;; Debug lampes via switches TODO RETIRER CA
+  ask lampes with [isactif != LampeEntree and pcolor = 64.7][
+    set isActif LampeEntree
+    ifelse isActif [
+      set shape "triangle"
+    ][
+      set shape "triangle 2"
+    ]
+  ]
+  ask lampes with [isactif != LampeSdB and pcolor = 84.9][
+    set isActif LampeSdB
+    ifelse isActif [
+      set shape "triangle"
+    ][
+      set shape "triangle 2"
+    ]
+  ]
+  ask lampes with [isactif != LampesPP and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+    set isActif LampesPP
+    ifelse isActif [
+      set shape "triangle"
+    ][
+      set shape "triangle 2"
+    ]
+  ]
+
+
+
+  ;;; Lumière extérieure
+  ;;;; Aube
+  if (time:is-after? dateTimeActuel HeureLeverSoleilTime and time:is-before? dateTimeActuel HeureCoucherSoleilTime and isNuit)[
+    if LuminositeExterieur >= 0 and LuminositeExterieur < MaxLuminosite [
+      set LuminositeExterieur (LuminositeExterieur + (MaxLuminosite / 2700))
+    ]
+    if LuminositeExterieur < 0 [
+      set LuminositeExterieur 0
+    ]
+    if LuminositeExterieur > MaxLuminosite[
+      set LuminositeExterieur MaxLuminosite
+    ]
+    if LuminositeExterieur = MaxLuminosite[
+      set isNuit false
+    ]
+  ]
+  ;;;; Crépuscule
+  if (time:is-after? dateTimeActuel HeureCoucherSoleilTime and not isNuit)[
+    if LuminositeExterieur > 0 [
+      set LuminositeExterieur (LuminositeExterieur - (MaxLuminosite / 2700))
+    ]
+    if LuminositeExterieur < 0 [
+      set LuminositeExterieur 0
+    ]
+    if LuminositeExterieur = 0 [
+      set isNuit true
+    ]
+  ]
+
+  ;;; Lumière intérieure
+  ;;;; Lumière naturelle (Volets)
+  ask volets with [isouvert = true][
+    ;;;;; Si volet entrée
+    if any? (neighbors with [pcolor = 64.7])[
+      ;;;;;; Check luminosite lampe entree
+      let maxLuminositeEntree LuminositeExterieur
+      ask lampes with [isactif and pcolor = 64.7][
+        if luminosite > maxLuminositeEntree[
+          set maxLuminositeEntree luminosite
+        ]
+      ]
+      set LuminositeEntree maxLuminositeEntree
+    ]
+
+    ;;;;; Si volet pièce principale
+    if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      ;;;;;; Check luminosite lampes pièces principales
+      let maxLuminositePiecePrincipales LuminositeExterieur
+      ask lampes with [isactif and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+        if luminosite > maxLuminositePiecePrincipales[
+          set maxLuminositePiecePrincipales luminosite
+        ]
+      ]
+      set LuminositePiecePrincipales maxLuminositePiecePrincipales
+    ]
+
+    ;;;;; Si volet à côté de patch marron, regarder les patchs à côté
+    if any? (neighbors with [pcolor = 23.3])[
+      let piecevolet ""
+      ask neighbors with [pcolor = 23.3][
+        if any? (neighbors with [pcolor = 64.7])[
+          set piecevolet "E" ;Entrée
+        ]
+        if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+          set piecevolet "PP" ;Pièces principales
+        ]
+      ]
+      if piecevolet = "E"[
+        ;;;;;; Check luminosite lampe entree
+        let maxLuminositeEntree LuminositeExterieur
+        ask lampes with [isactif and pcolor = 64.7][
+          if luminosite > maxLuminositeEntree[
+            set maxLuminositeEntree luminosite
+          ]
+        ]
+        set LuminositeEntree maxLuminositeEntree
+      ]
+      if piecevolet = "PP"[
+        ;;;;;; Check luminosite lampes pièces principales
+        let maxLuminositePiecePrincipales LuminositeExterieur
+        ask lampes with [isactif and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+          if luminosite > maxLuminositePiecePrincipales[
+            set maxLuminositePiecePrincipales luminosite
+          ]
+        ]
+        set LuminositePiecePrincipales maxLuminositePiecePrincipales
+      ]
+    ]
+  ]
+  ;;;; Lumière des lampes
+  ;;;;; RàZ des lumières des pièces sans fenêtre (Salle de bain)
+  if not any?(lampes with [pcolor = 84.9 and isActif])[
+    set LuminositeSdB 0
+  ]
+
+  ask lampes with [isactif = true][
+    ;;;;; Si luminosité inférieur à celui de la lampe (ex: nuit/volets fermés)
+    ;;;;;; Pièces principales
+    if (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3) and LuminositePiecePrincipales < luminosite [
+      set LuminositePiecePrincipales luminosite
+    ]
+    ;;;;;; Entrée
+    if pcolor = 23.3 and LuminositeEntree < luminosite [
+      set LuminositeEntree luminosite
+    ]
+    ;;;;;; Salle de bain
+    if pcolor = 84.9 and LuminositeSdB < luminosite [
+      set LuminositeSdB luminosite
+    ]
+  ]
+
+  ;; Gestion de la température
+
+
+
+  ;;1 tick = 1 seconde
+  incrementOneSecond
+  tick
+end
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 668
@@ -1081,8 +1301,8 @@ GRAPHICS-WINDOW
 17
 0
 10
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -1485,6 +1705,112 @@ Luminosité
 11
 0.0
 1
+
+TEXTBOX
+83
+496
+233
+514
+Utilisateur
+11
+0.0
+1
+
+CHOOSER
+11
+519
+149
+564
+TypeHandicap
+TypeHandicap
+"Aucun"
+0
+
+BUTTON
+105
+14
+168
+47
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+PLOT
+442
+570
+642
+720
+Luminosité sur temps
+Temps (s)
+Lumière (Lx)
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot LuminositeExterieur"
+
+PLOT
+653
+572
+853
+722
+Température sur temps
+Temperature (°C)
+Temps (s)
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot TemperatureExterieur"
+
+SWITCH
+190
+705
+318
+738
+LampeEntree
+LampeEntree
+1
+1
+-1000
+
+SWITCH
+196
+657
+307
+690
+LampesPP
+LampesPP
+0
+1
+-1000
+
+SWITCH
+211
+757
+329
+790
+LampeSdB
+LampeSdB
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
