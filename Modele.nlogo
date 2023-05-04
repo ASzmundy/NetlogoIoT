@@ -4,10 +4,6 @@ extensions [time csv]
 
 ;VARIABLES GLOBALES
 globals[
-  ;;STATIQUES
-
-  ;;DYNAMIQUES
-
   ;;;Date et heure
   dateTimeActuel
   Jour
@@ -33,6 +29,9 @@ globals[
   TemperatureExterieur
   TemperatureExterieurCibleMin ;;;;Température minimum de la journée
   TemperatureExterieurCibleMax ;;;;Température maximum de la journée
+  dateTimeTemperatureMin
+  dateTimeTemperatureMax
+  secondesEntrePics
 
   ;;;Gestion luminosité
   LuminositePiecesPrincipales
@@ -366,7 +365,7 @@ to setup
   set Jour time:get "day" dt
   set Mois time:get "month" dt
   ;;;;; Conversion 12h vers 24
-  if substring dtstring 13 15 = "PM" [
+  if substring dtstring 13 15 = "PM" and (substring dtstring 0 2 != "12") [
     set dt time:plus dt 12 "hours"
   ]
   set Heure time:get "hour" dt
@@ -408,8 +407,30 @@ to setup
    set TemperatureExterieurCibleMin MinTempAutomne + (random ((MaxTempAutomne - MinTempAutomne) / 2))
    set TemperatureExterieurCibleMax MaxTempAutomne - (random ((MaxTempAutomne - MinTempAutomne) / 2))
   ]
+
+  ;;;; Calcul du temps restant avant le prochain extremum
+  ;;;;; Calcul des datetimes extremums
+  set dateTimeTemperatureMin time:create (word Annee "-" Mois "-" Jour " " minTempHeure)
+  set dateTimeTemperatureMax time:create (word Annee "-" Mois "-" Jour " " maxTempHeure)
+
+  ;;;;; Calcul du temps restant en secondes
+  let secondesAvantPic 0
+  ;;;;;; Si après heure de la température max, utiliser l'heure de la température min du jour suivant
+  ifelse time:is-after? dateTimeActuel dateTimeTemperatureMax [
+    set secondesAvantPic time:difference-between dateTimeActuel (time:plus dateTimeTemperatureMin 1 "days") "seconds"
+  ][
+   ;;;;;; Si avant heure de la température min, utiliser l'heure de la température min
+    ifelse time:is-before? dateTimeActuel dateTimeTemperatureMin[
+      set secondesAvantPic time:difference-between dateTimeActuel dateTimeTemperatureMin "seconds"
+    ][
+      ;;;;;; Si entre 2 extremums, utiliser l'heure de la température max
+      set secondesAvantPic time:difference-between dateTimeActuel dateTimeTemperatureMax "seconds"
+    ]
+  ]
+
   ;;;; Affectation des températures en fonction de la température cible
-  set TemperatureExterieur TemperatureExterieurCibleMin + (TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) * (Heure - 3) / (16 - 3)
+  set secondesEntrePics time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
+  set TemperatureExterieur TemperatureExterieurCibleMin + (secondesEntrePics - secondesAvantPic) * ((TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) / secondesEntrePics)
   set TemperaturePiecePrincipales TemperatureExterieur
   set TemperatureEntree TemperatureExterieur
   set TemperatureSdB TemperatureExterieur
@@ -1206,6 +1227,7 @@ to newDay
   if ((mois = 9 and jour >= 21) or mois = 10 or mois = 11 or (mois = 12 and jour < 20)) and Saison != "Automne"[
    set Saison "Automne"
   ]
+
 end
 
 ; GO
@@ -1213,7 +1235,6 @@ to go
   ;; Gestion nouvelle journée
   if heure = 0 and minute = 0 and seconde = 0 [
     newDay
-
   ]
 
   ;;Gestion de la lumière
@@ -1415,7 +1436,53 @@ to go
     ]
   ]
 
-  ;;TODO Gestion de la température
+  ;; Gestion de la température extérieure
+  ;;; Si heure du pic atteint, alors TemperatureExterieur = Temperature du pic et on met le datetime du prochain pic au lendemain
+  if time:is-equal? dateTimeActuel dateTimeTemperatureMax[
+    set TemperatureExterieur TemperatureExterieurCibleMax
+    set dateTimeTemperatureMin time:plus dateTimeTemperatureMin 1 "day"
+    if saison = "Hiver" [
+      set TemperatureExterieurCibleMin MinTempHiver + (random ((MaxTempHiver - MinTempHiver) / 10))
+    ]
+    if saison = "Printemps" [
+      set TemperatureExterieurCibleMin MinTempPrintemps + (random ((MaxTempPrintemps - MinTempPrintemps) / 10))
+    ]
+    if saison = "Ete" [
+      set TemperatureExterieurCibleMin MinTempEte + (random ((MaxTempEte - MinTempEte) / 10))
+    ]
+    if saison = "Automne" [
+      set TemperatureExterieurCibleMin MinTempAutomne + (random ((MaxTempAutomne - MinTempAutomne) / 2))
+    ]
+    set secondesEntrePics time:difference-between dateTimeTemperatureMax dateTimeTemperatureMin "seconds"
+  ]
+
+  if time:is-equal? dateTimeActuel dateTimeTemperatureMin[
+    set TemperatureExterieur TemperatureExterieurCibleMin
+    set dateTimeTemperatureMax time:plus dateTimeTemperatureMax 1 "day"
+    if saison = "Hiver" [
+      set TemperatureExterieurCibleMax MaxTempHiver - (random ((MaxTempHiver - MinTempHiver) / 10))
+    ]
+    if saison = "Printemps" [
+      set TemperatureExterieurCibleMax MaxTempPrintemps - (random ((MaxTempPrintemps - MinTempPrintemps) / 10))
+    ]
+    if saison = "Ete" [
+      set TemperatureExterieurCibleMax MaxTempEte - (random ((MaxTempEte - MinTempEte) / 10))
+    ]
+    if saison = "Automne" [
+      set TemperatureExterieurCibleMax MaxTempAutomne - (random ((MaxTempAutomne - MinTempAutomne) / 2))
+    ]
+    set secondesEntrePics time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
+  ]
+
+  ;;; Si après heure de la température max ou avant heure de la température min, diminuer la température
+  ifelse time:is-after? dateTimeActuel dateTimeTemperatureMax or time:is-before? dateTimeActuel dateTimeTemperatureMin [
+    set TemperatureExterieur TemperatureExterieur - ((TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) / secondesEntrePics)
+  ][
+    ;;; Si entre 2 extremums, monter la température
+    set TemperatureExterieur TemperatureExterieur + ((TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) / secondesEntrePics)
+  ]
+
+  ;; Gestion de la température intérieure
 
 
 
@@ -1445,8 +1512,8 @@ GRAPHICS-WINDOW
 17
 0
 10
-1
-1
+0
+0
 1
 ticks
 30.0
@@ -1579,10 +1646,10 @@ TemperatureExterieur
 11
 
 TEXTBOX
-100
-263
-250
-281
+350
+256
+500
+274
 Températures
 11
 0.0
@@ -1622,7 +1689,7 @@ MaxTempHiver
 MaxTempHiver
 MinTempHiver
 50
-30.0
+10.0
 1
 1
 °C
@@ -1647,7 +1714,7 @@ MaxTempPrintemps
 MaxTempPrintemps
 MinTempPrintemps
 50
-19.0
+23.0
 1
 1
 °C
@@ -1662,7 +1729,7 @@ MinTempPrintemps
 MinTempPrintemps
 -50
 MaxTempPrintemps
-4.0
+9.0
 1
 1
 °C
@@ -1687,7 +1754,7 @@ MinTempEte
 MinTempEte
 -50
 MaxTempEte
-11.0
+14.0
 1
 1
 °C
@@ -1702,7 +1769,7 @@ MaxTempEte
 MaxTempEte
 MinTempEte
 50
-30.0
+29.0
 1
 1
 °C
@@ -1717,7 +1784,7 @@ MinTempAutomne
 MinTempAutomne
 -50
 MaxTempAutomne
--5.0
+1.0
 1
 1
 °C
@@ -1732,7 +1799,7 @@ MaxTempAutomne
 MaxTempAutomne
 MinTempAutomne
 50
-15.5231
+14.0
 1
 1
 °C
@@ -1894,7 +1961,7 @@ SWITCH
 738
 LampeEntree
 LampeEntree
-0
+1
 1
 -1000
 
@@ -1905,7 +1972,7 @@ SWITCH
 690
 LampesPP
 LampesPP
-0
+1
 1
 -1000
 
@@ -1927,7 +1994,7 @@ SWITCH
 689
 VoletsPP
 VoletsPP
-0
+1
 1
 -1000
 
@@ -1941,6 +2008,56 @@ VoletsEntree
 1
 1
 -1000
+
+TEXTBOX
+156
+629
+306
+647
+Débug luminosite
+11
+0.0
+1
+
+SLIDER
+455
+290
+627
+323
+minTempHeure
+minTempHeure
+0
+maxTempHeure
+3.0
+1
+1
+h
+HORIZONTAL
+
+SLIDER
+458
+337
+630
+370
+maxTempHeure
+maxTempHeure
+minTempHeure
+23
+16.0
+1
+1
+h
+HORIZONTAL
+
+TEXTBOX
+488
+627
+638
+645
+Débug température
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
