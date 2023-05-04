@@ -35,7 +35,7 @@ globals[
   TemperatureExterieurCibleMax ;;;;Température maximum de la journée
 
   ;;;Gestion luminosité
-  LuminositePiecePrincipales
+  LuminositePiecesPrincipales
   LuminositeEntree
   LuminositeSdB
   LuminositeExterieur
@@ -1070,24 +1070,78 @@ to setup
   ]
 
   ;; Initialisation variable Luminosité intérieur
+  ;;; Check variable debug lampes TODO RETIRER CA
+  ask lampes with [pcolor = 64.7][
+    set isactif LampeEntree
+    ifelse isActif [
+      set shape "triangle"
+    ][
+      set shape "triangle 2"
+    ]
+  ]
+  ask lampes with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3][
+    set isactif LampesPP
+    ifelse isActif [
+      set shape "triangle"
+    ][
+      set shape "triangle 2"
+    ]
+  ]
+  ask lampes with [pcolor = 84.9][
+    set isactif LampeSdB
+    ifelse isActif [
+      set shape "triangle"
+    ][
+      set shape "triangle 2"
+    ]
+  ]
+
+  ;;; Check variable debug volets TODO RETIRER CA
+  ask volets with [any?(neighbors with[pcolor = 64.7])][
+    set isouvert not VoletsEntree
+    ifelse isouvert [
+        set color cyan
+      ][
+        set color gray
+      ]
+  ]
+  ask volets with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])][
+    set isouvert not VoletsPP
+    ifelse isouvert [
+        set color cyan
+      ][
+        set color gray
+      ]
+  ]
+  ask volets with [any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])])][
+    set isouvert not VoletsPP
+    ifelse isouvert [
+        set color cyan
+      ][
+        set color gray
+      ]
+  ]
+
+
+
   ;;; Si il y a au moins un volet ouvert, luminosité pièce = luminosité extérieur
   ask volets with [isouvert = true][
     ;; Si volet entrée
-    if any? (neighbors with [pcolor = 64.7])[
+    if any?(neighbors with [pcolor = 64.7])[
       set LuminositeEntree LuminositeExterieur
     ]
     ;; Si volet pièce principale
-    if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
-      set LuminositePiecePrincipales LuminositeExterieur
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      set LuminositePiecesPrincipales LuminositeExterieur
     ]
     ;; Si volet à côté de patch marron, regarder les patchs à côté
-    if any? (neighbors with [pcolor = 23.3])[
+    if any?(neighbors with [pcolor = 23.3])[
       let piecevolet ""
       ask neighbors with [pcolor = 23.3][
-        if any? (neighbors with [pcolor = 64.7])[
+        if any?(neighbors with [pcolor = 64.7])[
           set piecevolet "E" ;Entrée
         ]
-        if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+        if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
           set piecevolet "PP" ;Pièces principales
         ]
       ]
@@ -1095,10 +1149,28 @@ to setup
         set LuminositeEntree LuminositeExterieur
       ]
       if piecevolet = "PP" [
-        set LuminositePiecePrincipales LuminositeExterieur
+        set LuminositePiecesPrincipales LuminositeExterieur
       ]
     ]
   ]
+
+  ;;; Si il y a des volets fermés mais des lampes allumées, luminosite pièce = luminosite lampe
+  ask lampes with [isactif = true][
+    ;;;;; Si luminosité inférieur à celui de la lampe (ex: nuit/volets fermés)
+    ;;;;;; Pièces principales
+    if (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3) and LuminositePiecesPrincipales < luminosite [
+      set LuminositePiecesPrincipales luminosite
+    ]
+    ;;;;;; Entrée
+    if pcolor = 64.7 and LuminositeEntree < luminosite [
+      set LuminositeEntree luminosite
+    ]
+    ;;;;;; Salle de bain
+    if pcolor = 84.9 and LuminositeSdB < luminosite [
+      set LuminositeSdB luminosite
+    ]
+  ]
+
 end
 ;FIN SETUP
 
@@ -1171,6 +1243,48 @@ to go
     ]
   ]
 
+  ;;; Debug volets via switches TODO RETIRER CA
+  ask volets with [isouvert = VoletsEntree][
+    if any?(neighbors with [pcolor = 64.7])[
+      set isouvert not VoletsEntree
+      ifelse isouvert [
+        set color cyan
+      ][
+        set color gray
+      ]
+    ]
+  ]
+  ask volets with [isouvert = VoletsPP][
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+      set isouvert not VoletsPP
+      ifelse isouvert [
+        set color cyan
+      ][
+        set color gray
+      ]
+    ]
+    ;;;; Cas patch marron
+    if any?(neighbors with [pcolor = 23.3])[
+      let piecevolet ""
+      ask neighbors with [pcolor = 23.3][
+        if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+          set piecevolet "PP"
+        ]
+        if any?(neighbors with [pcolor = 64.7])[
+          set piecevolet "E"
+        ]
+      ]
+      if piecevolet = "PP" [
+        set isouvert not VoletsPP
+        ifelse isouvert [
+          set color cyan
+        ][
+          set color gray
+        ]
+      ]
+    ]
+  ]
+
 
 
   ;;; Lumière extérieure
@@ -1203,10 +1317,32 @@ to go
   ]
 
   ;;; Lumière intérieure
+  ;;;; RàZ de la luminosité des pièces sans fenêtre (Salle de bain)
+  if not any?(lampes with [pcolor = 84.9 and isActif])[
+    set LuminositeSdB 0
+  ]
+  ;;;; Gestion de la luminosité des pièces avec fenêtres sans volets ouverts
+  ;;;;; Pièces principales
+  if not any?(volets with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3]) and isouvert])[
+    let MaxLuminositePP 0
+    ask lampes with[(pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3) and isactif][
+      set MaxLuminositePP luminosite
+    ]
+    set LuminositePiecesPrincipales MaxLuminositePP
+  ]
+  ;;;;; Entrée
+  if not any?(volets with [any?(neighbors with[pcolor = 64.7]) and isouvert])[
+    let MaxLuminositeEntree 0
+    ask lampes with[pcolor = 64.7 and isactif][
+      set MaxLuminositeEntree luminosite
+    ]
+    set LuminositeEntree MaxLuminositeEntree
+  ]
+
   ;;;; Lumière naturelle (Volets)
   ask volets with [isouvert = true][
     ;;;;; Si volet entrée
-    if any? (neighbors with [pcolor = 64.7])[
+    if any?(neighbors with [pcolor = 64.7])[
       ;;;;;; Check luminosite lampe entree
       let maxLuminositeEntree LuminositeExterieur
       ask lampes with [isactif and pcolor = 64.7][
@@ -1218,25 +1354,25 @@ to go
     ]
 
     ;;;;; Si volet pièce principale
-    if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ;;;;;; Check luminosite lampes pièces principales
-      let maxLuminositePiecePrincipales LuminositeExterieur
+      let maxLuminositePiecesPrincipales LuminositeExterieur
       ask lampes with [isactif and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-        if luminosite > maxLuminositePiecePrincipales[
-          set maxLuminositePiecePrincipales luminosite
+        if luminosite > maxLuminositePiecesPrincipales[
+          set maxLuminositePiecesPrincipales luminosite
         ]
       ]
-      set LuminositePiecePrincipales maxLuminositePiecePrincipales
+      set LuminositePiecesPrincipales maxLuminositePiecesPrincipales
     ]
 
     ;;;;; Si volet à côté de patch marron, regarder les patchs à côté
-    if any? (neighbors with [pcolor = 23.3])[
+    if any?(neighbors with [pcolor = 23.3])[
       let piecevolet ""
       ask neighbors with [pcolor = 23.3][
-        if any? (neighbors with [pcolor = 64.7])[
+        if any?(neighbors with [pcolor = 64.7])[
           set piecevolet "E" ;Entrée
         ]
-        if any? (neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
+        if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
           set piecevolet "PP" ;Pièces principales
         ]
       ]
@@ -1252,30 +1388,25 @@ to go
       ]
       if piecevolet = "PP"[
         ;;;;;; Check luminosite lampes pièces principales
-        let maxLuminositePiecePrincipales LuminositeExterieur
+        let maxLuminositePiecesPrincipales LuminositeExterieur
         ask lampes with [isactif and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-          if luminosite > maxLuminositePiecePrincipales[
-            set maxLuminositePiecePrincipales luminosite
+          if luminosite > maxLuminositePiecesPrincipales[
+            set maxLuminositePiecesPrincipales luminosite
           ]
         ]
-        set LuminositePiecePrincipales maxLuminositePiecePrincipales
+        set LuminositePiecesPrincipales maxLuminositePiecesPrincipales
       ]
     ]
   ]
   ;;;; Lumière des lampes
-  ;;;;; RàZ des lumières des pièces sans fenêtre (Salle de bain)
-  if not any?(lampes with [pcolor = 84.9 and isActif])[
-    set LuminositeSdB 0
-  ]
-
   ask lampes with [isactif = true][
     ;;;;; Si luminosité inférieur à celui de la lampe (ex: nuit/volets fermés)
     ;;;;;; Pièces principales
-    if (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3) and LuminositePiecePrincipales < luminosite [
-      set LuminositePiecePrincipales luminosite
+    if (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3) and LuminositePiecesPrincipales < luminosite [
+      set LuminositePiecesPrincipales luminosite
     ]
     ;;;;;; Entrée
-    if pcolor = 23.3 and LuminositeEntree < luminosite [
+    if pcolor = 64.7 and LuminositeEntree < luminosite [
       set LuminositeEntree luminosite
     ]
     ;;;;;; Salle de bain
@@ -1284,7 +1415,7 @@ to go
     ]
   ]
 
-  ;; Gestion de la température
+  ;;TODO Gestion de la température
 
 
 
@@ -1292,7 +1423,6 @@ to go
   incrementOneSecond
   tick
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 668
@@ -1315,8 +1445,8 @@ GRAPHICS-WINDOW
 17
 0
 10
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -1668,7 +1798,7 @@ MONITOR
 1290
 66
 Luminosité
-LuminositePiecePrincipales
+LuminositePiecesPrincipales
 17
 1
 11
@@ -1764,7 +1894,7 @@ SWITCH
 738
 LampeEntree
 LampeEntree
-1
+0
 1
 -1000
 
@@ -1775,7 +1905,7 @@ SWITCH
 690
 LampesPP
 LampesPP
-1
+0
 1
 -1000
 
@@ -1786,6 +1916,28 @@ SWITCH
 790
 LampeSdB
 LampeSdB
+1
+1
+-1000
+
+SWITCH
+49
+656
+152
+689
+VoletsPP
+VoletsPP
+0
+1
+-1000
+
+SWITCH
+41
+715
+167
+748
+VoletsEntree
+VoletsEntree
 1
 1
 -1000
