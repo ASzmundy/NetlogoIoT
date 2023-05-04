@@ -410,14 +410,20 @@ to setup
 
   ;;;; Calcul du temps restant avant le prochain extremum
   ;;;;; Calcul des datetimes extremums
-  set dateTimeTemperatureMin time:create (word Annee "-" Mois "-" Jour " " minTempHeure)
+  ifelse Heure < maxTempHeure
+  [
+    set dateTimeTemperatureMin time:create (word Annee "-" Mois "-" Jour " " minTempHeure)
+  ][
+    ;;;;;;Si setup lancé après heure max, mettre le pic au jour suivant
+    set dateTimeTemperatureMin time:create (word (time:get "year" dateTimeActuel) "-" (time:get "month" dateTimeActuel) "-" ((time:get "day" dateTimeActuel) + 1) " " minTempHeure)
+  ]
   set dateTimeTemperatureMax time:create (word Annee "-" Mois "-" Jour " " maxTempHeure)
 
   ;;;;; Calcul du temps restant en secondes
   let secondesAvantPic 0
-  ;;;;;; Si après heure de la température max, utiliser l'heure de la température min du jour suivant
+  ;;;;;; Si après heure de la température max, utiliser l'heure de la température min du jour suivant (déjà calculé)
   ifelse time:is-after? dateTimeActuel dateTimeTemperatureMax [
-    set secondesAvantPic time:difference-between dateTimeActuel (time:plus dateTimeTemperatureMin 1 "days") "seconds"
+    set secondesAvantPic time:difference-between dateTimeActuel dateTimeTemperatureMin "seconds"
   ][
    ;;;;;; Si avant heure de la température min, utiliser l'heure de la température min
     ifelse time:is-before? dateTimeActuel dateTimeTemperatureMin[
@@ -429,8 +435,15 @@ to setup
   ]
 
   ;;;; Affectation des températures en fonction de la température cible
-  set secondesEntrePics time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
-  set TemperatureExterieur TemperatureExterieurCibleMin + (secondesEntrePics - secondesAvantPic) * ((TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) / secondesEntrePics)
+  ifelse time:is-before? dateTimeTemperatureMin dateTimeTemperatureMax[
+    ;;;;; Si setup lancé avant pic max
+    set secondesEntrePics time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
+    set TemperatureExterieur TemperatureExterieurCibleMin + (secondesEntrePics - secondesAvantPic) * ((TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) / secondesEntrePics)
+  ][
+    ;;;;; Si setup lancé après pic max
+    set secondesEntrePics time:difference-between dateTimeTemperatureMax dateTimeTemperatureMin "seconds"
+    set TemperatureExterieur TemperatureExterieurCibleMax - (secondesEntrePics - secondesAvantPic) * ((TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) / secondesEntrePics)
+  ]
   set TemperaturePiecesPrincipales TemperatureExterieur
   set TemperatureEntree TemperatureExterieur
   set TemperatureSdB TemperatureExterieur
@@ -2205,7 +2218,7 @@ isolation
 isolation
 1
 100000
-100000.0
+49045.0
 1
 1
 NIL
@@ -2239,7 +2252,7 @@ SWITCH
 762
 FenetresPP
 FenetresPP
-0
+1
 1
 -1000
 
