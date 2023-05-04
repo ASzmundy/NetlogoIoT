@@ -1120,6 +1120,20 @@ end
 to newDay
   ;;;Définition éphéméride du jour
   readEphemeride mois jour
+
+  ;;;Définition saison
+  if ((mois = 12 and jour >= 21) or mois = 1 or mois = 2 or (mois = 3 and jour < 20)) and Saison != "Hiver"[
+   set Saison "Hiver"
+  ]
+  if ((mois = 3 and jour >= 21) or mois = 4 or mois = 5 or (mois = 6 and jour < 20)) and Saison != "Printemps"[
+   set Saison "Printemps"
+  ]
+  if ((mois = 6 and jour >= 21) or mois = 7 or mois = 8 or (mois = 9 and jour < 20)) and Saison != "Ete"[
+   set Saison "Ete"
+  ]
+  if ((mois = 9 and jour >= 21) or mois = 10 or mois = 11 or (mois = 12 and jour < 20)) and Saison != "Automne"[
+   set Saison "Automne"
+  ]
 end
 
 ; GO
@@ -1301,8 +1315,8 @@ GRAPHICS-WINDOW
 17
 0
 10
-1
-1
+0
+0
 1
 ticks
 30.0
@@ -1743,42 +1757,6 @@ NIL
 NIL
 1
 
-PLOT
-442
-570
-642
-720
-Luminosité sur temps
-Temps (s)
-Lumière (Lx)
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot LuminositeExterieur"
-
-PLOT
-653
-572
-853
-722
-Température sur temps
-Temperature (°C)
-Temps (s)
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot TemperatureExterieur"
-
 SWITCH
 190
 705
@@ -1797,7 +1775,7 @@ SWITCH
 690
 LampesPP
 LampesPP
-0
+1
 1
 -1000
 
