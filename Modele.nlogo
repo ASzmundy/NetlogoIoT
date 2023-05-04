@@ -23,7 +23,7 @@ globals[
   COSdB
 
   ;;;Gestion température
-  TemperaturePiecePrincipales
+  TemperaturePiecesPrincipales
   TemperatureEntree
   TemperatureSdB
   TemperatureExterieur
@@ -431,7 +431,7 @@ to setup
   ;;;; Affectation des températures en fonction de la température cible
   set secondesEntrePics time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
   set TemperatureExterieur TemperatureExterieurCibleMin + (secondesEntrePics - secondesAvantPic) * ((TemperatureExterieurCibleMax - TemperatureExterieurCibleMin) / secondesEntrePics)
-  set TemperaturePiecePrincipales TemperatureExterieur
+  set TemperaturePiecesPrincipales TemperatureExterieur
   set TemperatureEntree TemperatureExterieur
   set TemperatureSdB TemperatureExterieur
 
@@ -564,7 +564,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask douches-here[
-        set temperatureeau TemperaturePiecePrincipales
+        set temperatureeau TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -603,7 +603,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask eviers-here[
-        set temperatureeau TemperaturePiecePrincipales
+        set temperatureeau TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -632,7 +632,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask cafetieres-here[
-        set temperaturecafe TemperaturePiecePrincipales
+        set temperaturecafe TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -661,7 +661,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask plaques-here[
-        set temperature TemperaturePiecePrincipales
+        set temperature TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -713,7 +713,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask sechelinges-here[
-        set temperature TemperaturePiecePrincipales
+        set temperature TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -743,7 +743,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask fours-here[
-        set temperature TemperaturePiecePrincipales
+        set temperature TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -776,7 +776,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask lavevaisselles-here[
-        set temperatureeau TemperaturePiecePrincipales
+        set temperatureeau TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -901,7 +901,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask chauffages-here[
-        set temperatureambiante TemperaturePiecePrincipales
+        set temperatureambiante TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -930,7 +930,7 @@ to setup
     ]
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
       ask climatiseurs-here[
-        set temperatureambiante TemperaturePiecePrincipales
+        set temperatureambiante TemperaturePiecesPrincipales
       ]
     ]
   ]
@@ -1143,6 +1143,50 @@ to setup
       ]
   ]
 
+  ;;; Check variable debug fenetres TODO RETIRER CA
+  ask fenetres with [any?(neighbors with[pcolor = 64.7])][
+    set isouvert FenetresEntree
+    ifelse isouvert [
+      ask volets-here with [isouvert = true] [
+        set color blue
+      ]
+      set color blue
+    ][
+      ask volets-here with [isouvert = true] [
+        set color cyan
+      ]
+      set color cyan
+    ]
+  ]
+  ask fenetres with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])][
+    set isouvert FenetresPP
+    ifelse isouvert [
+      ask volets-here with [isouvert = true] [
+        set color blue
+      ]
+      set color blue
+    ][
+      ask volets-here with [isouvert = true] [
+        set color cyan
+      ]
+      set color cyan
+    ]
+  ]
+  ask fenetres with [any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])])][
+    set isouvert FenetresPP
+    ifelse isouvert [
+      ask volets-here with [isouvert = true] [
+        set color blue
+      ]
+      set color blue
+    ][
+      ask volets-here with [isouvert = true] [
+        set color cyan
+      ]
+      set color cyan
+    ]
+  ]
+
 
 
   ;;; Si il y a au moins un volet ouvert, luminosité pièce = luminosité extérieur
@@ -1303,6 +1347,50 @@ to go
           set color gray
         ]
       ]
+    ]
+  ]
+
+  ;;; debug fenetres TODO RETIRER CA
+  ask fenetres with [any?(neighbors with[pcolor = 64.7]) and isouvert != FenetresEntree][
+    set isouvert FenetresEntree
+    ifelse isouvert [
+      ask volets-here with [isouvert = true] [
+        set color blue
+      ]
+      set color blue
+    ][
+      ask volets-here with [isouvert = true] [
+        set color cyan
+      ]
+      set color cyan
+    ]
+  ]
+  ask fenetres with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3]) and isouvert != FenetresPP][
+    set isouvert FenetresPP
+    ifelse isouvert [
+      ask volets-here with [isouvert = true] [
+        set color blue
+      ]
+      set color blue
+    ][
+      ask volets-here with [isouvert = true] [
+        set color cyan
+      ]
+      set color cyan
+    ]
+  ]
+  ask fenetres with [any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])]) and isouvert != FenetresPP][
+    set isouvert FenetresPP
+    ifelse isouvert [
+      ask volets-here with [isouvert = true] [
+        set color blue
+      ]
+      set color blue
+    ][
+      ask volets-here with [isouvert = true] [
+        set color cyan
+      ]
+      set color cyan
     ]
   ]
 
@@ -1483,7 +1571,26 @@ to go
   ]
 
   ;; Gestion de la température intérieure
+  ;;; Echange passif avec exterieur
+  ;;;; Si au moins 1 fenêtre ouverte dans les pièces principales
+  ifelse any?(fenetres with [isouvert = true and (any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3]) or any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])]))])
+  [
+    set TemperaturePiecesPrincipales TemperaturePiecesPrincipales - ((TemperaturePiecesPrincipales - TemperatureExterieur) / (isolation / 1000))
+  ][
+    set TemperaturePiecesPrincipales TemperaturePiecesPrincipales - ((TemperaturePiecesPrincipales - TemperatureExterieur) / isolation)
+  ]
+  ;;;; Si au moins 1 fenêtre ouverte dans l'entrée
+  ifelse any?(fenetres with [isouvert = true and (any?(neighbors with [pcolor = 64.7]) or any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 64.7])]))])
+  [
+    set TemperatureEntree TemperatureEntree - ((TemperatureEntree - TemperatureExterieur) / (isolation / 100))
+  ][
+    set TemperatureEntree TemperatureEntree - ((TemperatureEntree - TemperatureExterieur) / isolation)
+  ]
+  ;;;; SdB
+  set TemperatureSdB TemperatureSdB - ((TemperatureSdB - TemperatureExterieur) / isolation)
 
+
+  ;;; TODO Equilibre entre les pièces
 
 
   ;;1 tick = 1 seconde
@@ -1629,7 +1736,7 @@ MONITOR
 1219
 66
 Température
-TemperaturePiecePrincipales
+TemperaturePiecesPrincipales
 17
 1
 11
@@ -1938,9 +2045,9 @@ TypeHandicap
 0
 
 BUTTON
-105
+106
 14
-168
+169
 47
 NIL
 go
@@ -1972,7 +2079,7 @@ SWITCH
 690
 LampesPP
 LampesPP
-1
+0
 1
 -1000
 
@@ -1994,7 +2101,7 @@ SWITCH
 689
 VoletsPP
 VoletsPP
-1
+0
 1
 -1000
 
@@ -2058,6 +2165,72 @@ Débug température
 11
 0.0
 1
+
+PLOT
+688
+665
+888
+815
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -13345367 true "" "plot TemperaturePiecesPrincipales"
+"pen-1" 1.0 0 -2674135 true "" "plot TemperatureExterieur"
+
+SLIDER
+457
+410
+629
+443
+isolation
+isolation
+1
+100000
+12103.0
+1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+493
+388
+643
+406
+Qualité de l'isolation
+11
+0.0
+1
+
+SWITCH
+470
+669
+612
+702
+FenetresEntree
+FenetresEntree
+1
+1
+-1000
+
+SWITCH
+484
+729
+603
+762
+FenetresPP
+FenetresPP
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
