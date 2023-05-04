@@ -1590,8 +1590,17 @@ to go
   set TemperatureSdB TemperatureSdB - ((TemperatureSdB - TemperatureExterieur) / isolation)
 
 
-  ;;; TODO Equilibre entre les pièces
+  ;;; Equilibre température entre les pièces
+  let moyenneTemp 0
+  ;;;; Entree-SdB
+  set moyenneTemp (TemperatureEntree + TemperatureSdB) / 2
+  set TemperatureEntree TemperatureEntree - ((TemperatureEntree - moyenneTemp) / (isolation / 10)) ;;TODO Revoir isolation intérieure (variable isolationInterieur au lieu de diviser par 10 ?)
+  set TemperatureSdB TemperatureSdB - ((TemperatureSdB - moyenneTemp) / (isolation / 10))
 
+  ;;;; Entree-PP
+  set moyenneTemp (TemperatureEntree + TemperaturePiecesPrincipales) / 2
+  set TemperatureEntree TemperatureEntree - ((TemperatureEntree - moyenneTemp) / (isolation / 10))
+  set TemperaturePiecesPrincipales TemperaturePiecesPrincipales - ((TemperaturePiecesPrincipales - moyenneTemp) / (isolation / 10))
 
   ;;1 tick = 1 seconde
   incrementOneSecond
@@ -2101,7 +2110,7 @@ SWITCH
 689
 VoletsPP
 VoletsPP
-0
+1
 1
 -1000
 
@@ -2182,8 +2191,10 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -13345367 true "" "plot TemperaturePiecesPrincipales"
-"pen-1" 1.0 0 -2674135 true "" "plot TemperatureExterieur"
+"default" 1.0 0 -2674135 true "" "plot TemperaturePiecesPrincipales"
+"pen-1" 1.0 0 -16777216 true "" "plot TemperatureExterieur"
+"pen-2" 1.0 0 -13840069 true "" "plot TemperatureEntree"
+"pen-3" 1.0 0 -8990512 true "" "plot TemperatureSdB"
 
 SLIDER
 457
@@ -2194,7 +2205,7 @@ isolation
 isolation
 1
 100000
-12103.0
+100000.0
 1
 1
 NIL
@@ -2228,7 +2239,7 @@ SWITCH
 762
 FenetresPP
 FenetresPP
-1
+0
 1
 -1000
 
