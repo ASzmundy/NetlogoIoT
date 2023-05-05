@@ -1642,6 +1642,111 @@ to go
   ]
 
 
+  ;; Activation Chauffage
+  ;;;; Allumage chauffage Debug TODO Retirer
+  if entranceHeater = true[
+    ask heaters with [isActive != entranceHeater and pcolor = 64.7][
+      set isActive entranceHeater
+      ifelse isActive[
+        set color red
+      ][
+        set color white
+      ]
+    ]
+  ]
+  if principalroomsHeater = true[
+    ask heaters with [isActive != principalroomsHeater and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+      set isActive principalroomsHeater
+      ifelse isActive[
+        set color red
+      ][
+        set color white
+      ]
+    ]
+  ]
+  if bathroomHeater = true[
+    ask heaters with [isActive != bathroomHeater and pcolor = 84.9][
+      set isActive bathroomHeater
+      ifelse isActive[
+        set color red
+      ][
+        set color white
+      ]
+    ]
+  ]
+
+  ;;;; Allumage/Extinction par thermostat
+  ;;;;; Entrée
+  if entranceHeater = false[
+    ifelse temperatureEntrance < thermostat[
+      ask heaters with [isActive = false and pcolor = 64.7][
+        set isActive true
+        set color red
+      ]
+    ][
+      ask heaters with [isActive = true and pcolor = 64.7][
+        set isActive false
+        set color white
+      ]
+    ]
+  ]
+  ;;;;; Pièces principales
+  if principalroomsHeater = false[
+    ifelse temperaturePrincipalRooms < thermostat[
+      ask heaters with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+        set isActive true
+        set color red
+      ]
+    ][
+      ask heaters with [isActive = true and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+        set isActive false
+        set color white
+      ]
+    ]
+  ]
+  if bathroomHeater = false[
+    ;;;;; Salle de bain
+    ifelse temperatureBathroom < thermostat[
+      ask heaters with [isActive = false and pcolor = 84.9][
+        set isActive true
+        set color red
+      ]
+    ][
+      ask heaters with [isActive = true and pcolor = 84.9][
+        set isActive false
+        set color white
+      ]
+    ]
+  ]
+
+  ;; Activation Climatisation
+  ifelse principalRoomsAC = true[
+    ;;;; Allumage clim Debug TODO Retirer
+    ask ACs with [isActive != principalRoomsAC and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+      set isActive principalRoomsAC
+      ifelse isActive[
+        set color cyan
+      ][
+        set color white
+      ]
+    ]
+  ][
+    ;;;; Allumage/Extinction par thermostat
+    ;;;;; Pièces principales
+    ifelse temperaturePrincipalRooms > thermostat[
+      ask ACs with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+        set isActive true
+        set color cyan
+      ]
+    ][
+      ask ACs with [isActive = true and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+        set isActive false
+        set color white
+      ]
+    ]
+  ]
+
+
   ;; Gestion de la température intérieure
   ;;; Echange passif avec extérieur
   ;;;; Si au moins 1 fenêtre ouverte dans les pièces principales, isolation avec l'extérieur divisé par 100
@@ -1674,33 +1779,7 @@ to go
   set temperatureEntrance temperatureEntrance - ((temperatureEntrance - avgTemperature) / (isolation / 10))
   set temperaturePrincipalRooms temperaturePrincipalRooms - ((temperaturePrincipalRooms - avgTemperature) / (isolation / 10))
 
-  ;;; Fonctionnement Chauffage
-  ;;;; Allumage chauffage Debug TODO Retirer
-  ask heaters with [isActive != entranceHeater and pcolor = 64.7][
-    set isActive entranceHeater
-    ifelse isActive[
-      set color red
-    ][
-      set color white
-    ]
-  ]
-  ask heaters with [isActive != principalroomsHeater and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-    set isActive principalroomsHeater
-    ifelse isActive[
-      set color red
-    ][
-      set color white
-    ]
-  ]
-  ask heaters with [isActive != bathroomHeater and pcolor = 84.9][
-    set isActive bathroomHeater
-    ifelse isActive[
-      set color red
-    ][
-      set color white
-    ]
-  ]
-
+  ;;; Chauffage
   ;;; On assume qu'il faut 70W pour 1m3
   ask heaters with [isActive = true][
     ;;;; Entrée
@@ -1717,18 +1796,7 @@ to go
     ]
   ]
 
-  ;;; Fonctionnement Climatisation
-  ;;;; Allumage clim Debug TODO Retirer
-  ask ACs with [isActive != principalRoomsAC and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-    set isActive principalRoomsAC
-    ifelse isActive[
-      set color cyan
-    ][
-      set color white
-    ]
-  ]
-
-
+  ;;; Refroidissement par clim
   ;;; On assume qu'il faut 100W pour 1m3
   ask ACs with [isActive = true][
     ;;;; Entrée
@@ -2488,10 +2556,25 @@ ACPower
 ACPower
 0
 4000
-2242.0
+3338.0
 1
 1
 W
+HORIZONTAL
+
+SLIDER
+709
+407
+881
+440
+thermostat
+thermostat
+10
+30
+20.0
+1
+1
+°C
 HORIZONTAL
 
 @#$#@#$#@
