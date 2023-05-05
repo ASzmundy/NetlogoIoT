@@ -174,7 +174,7 @@ alarms-own [isActive]
 breed [temperatureSensors temperatureSensor]
 breed [luminositySensors luminositySensor]
 breed [doorSensors doorSensor]
-breed [moveSensors CapteurMouvement]
+breed [moveSensors moveSensor]
 breed [triggerSensors triggerSensor]
 breed [smokeSensors smokeSensor]
 breed [COSensors COSensor]
@@ -910,7 +910,7 @@ to setup
    sprout-heaters 1[
       set shape "container"
       set color white
-      set power 0
+      set power heaterPower
       set ambiantTemperature 0
       set isActive false
     ]
@@ -939,7 +939,7 @@ to setup
    sprout-ACs 1[
       set shape "computer server"
       set color white
-      set power 0
+      set power ACPower
       set ambiantTemperature 0
       set isActive false
     ]
@@ -1036,6 +1036,19 @@ to setup
       set size 0.1
     ]
   ]
+  ;;; Capteur luminosité
+  ask patches with [
+    (pxcor = 3 and pycor = 9)
+    or (pxcor = 2 and pycor = 4)
+    or (pxcor = 12 and pycor = 3)
+  ][
+    sprout-luminositySensors 1[
+      set shape "cylinder"
+      set color yellow
+      set size 0.1
+    ]
+  ]
+
   ;;; Capteur Porte
   ask patches with [
     pcolor = 6.3
@@ -1050,7 +1063,7 @@ to setup
   ask patches with [
     (pxcor = 4 and pycor = 8)
     or (pxcor = 10 and pycor = 5)
-    or (pxcor = 12 and pycor = 3)
+    or (pxcor = 16 and pycor = 1)
     or (pxcor = 4 and pycor = 4)
   ][
     sprout-moveSensors 1[
@@ -1257,6 +1270,43 @@ to setup
       set luminosityBathroom luminosity
     ]
   ]
+
+  ;;; Allumage chauffage Debug TODO Retirer
+  ask heaters with [isActive != entranceHeater and pcolor = 64.7][
+    set isActive entranceHeater
+    ifelse isActive[
+      set color red
+    ][
+      set color white
+    ]
+  ]
+  ask heaters with [isActive != principalroomsHeater and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+    set isActive principalroomsHeater
+    ifelse isActive[
+      set color red
+    ][
+      set color white
+    ]
+  ]
+  ask heaters with [isActive != bathroomHeater and pcolor = 84.9][
+    set isActive bathroomHeater
+    ifelse isActive[
+      set color red
+    ][
+      set color white
+    ]
+  ]
+
+  ;;; Allumage clim Debug TODO Retirer
+  ask ACs with [isActive != principalRoomsAC and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+    set isActive principalRoomsAC
+    ifelse isActive[
+      set color cyan
+    ][
+      set color white
+    ]
+  ]
+
 
 end
 ; FIN SETUP
@@ -1591,6 +1641,7 @@ to go
     set temperatureOutside temperatureOutside + ((targetTemperatureOutsideMax - targetTemperatureOutsideMin) / secondsBetweenExtremums)
   ]
 
+
   ;; Gestion de la température intérieure
   ;;; Echange passif avec extérieur
   ;;;; Si au moins 1 fenêtre ouverte dans les pièces principales, isolation avec l'extérieur divisé par 100
@@ -1613,15 +1664,88 @@ to go
 
   ;;; Equilibre température entre les pièces
   let avgTemperature 0
-  ;;;; Entree-Salle de bain
+  ;;;; Entrée-Salle de bain
   set avgTemperature (temperatureEntrance + temperatureBathroom) / 2
   set temperatureEntrance temperatureEntrance - ((temperatureEntrance - avgTemperature) / (isolation / 10)) ;;TODO Revoir isolation intérieure (variable isolationInterieur au lieu de diviser par 10 ?)
   set temperatureBathroom temperatureBathroom - ((temperatureBathroom - avgTemperature) / (isolation / 10))
 
-  ;;;; Entree-PiècesPrincipales
+  ;;;; Entrée-PiècesPrincipales
   set avgTemperature (temperatureEntrance + temperaturePrincipalRooms) / 2
   set temperatureEntrance temperatureEntrance - ((temperatureEntrance - avgTemperature) / (isolation / 10))
   set temperaturePrincipalRooms temperaturePrincipalRooms - ((temperaturePrincipalRooms - avgTemperature) / (isolation / 10))
+
+  ;;; Fonctionnement Chauffage
+  ;;;; Allumage chauffage Debug TODO Retirer
+  ask heaters with [isActive != entranceHeater and pcolor = 64.7][
+    set isActive entranceHeater
+    ifelse isActive[
+      set color red
+    ][
+      set color white
+    ]
+  ]
+  ask heaters with [isActive != principalroomsHeater and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+    set isActive principalroomsHeater
+    ifelse isActive[
+      set color red
+    ][
+      set color white
+    ]
+  ]
+  ask heaters with [isActive != bathroomHeater and pcolor = 84.9][
+    set isActive bathroomHeater
+    ifelse isActive[
+      set color red
+    ][
+      set color white
+    ]
+  ]
+
+  ;;; On assume qu'il faut 70W pour 1m3
+  ask heaters with [isActive = true][
+    ;;;; Entrée
+    if pcolor = 64.7[
+      set temperatureEntrance temperatureEntrance + ( (power / (25 * 70)) / 3600 ) ;;;;; TODO Régler pour chauffage cohérent on assume que la pièce fait 25m3 (9m², 2.8m de hauteur)
+    ]
+    ;;;; Pièces principales
+    if pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3[
+      set temperaturePrincipalRooms temperaturePrincipalRooms + ( (power / (84 * 70)) / 3600 ) ;;;;; TODO Régler pour chauffage cohérent on assume que la pièce fait 84m3 (30m², 2.8m de hauteur)
+    ]
+    ;;;; Salle de bain
+    if pcolor = 84.9[
+      set temperatureBathroom temperatureBathroom + ( (power / (25 * 70)) / 3600 )
+    ]
+  ]
+
+  ;;; Fonctionnement Climatisation
+  ;;;; Allumage clim Debug TODO Retirer
+  ask ACs with [isActive != principalRoomsAC and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+    set isActive principalRoomsAC
+    ifelse isActive[
+      set color cyan
+    ][
+      set color white
+    ]
+  ]
+
+
+  ;;; On assume qu'il faut 100W pour 1m3
+  ask ACs with [isActive = true][
+    ;;;; Entrée
+    if pcolor = 64.7[
+      set temperatureEntrance temperatureEntrance - ( (power / (25 * 100)) / 3600 ) ;;;;; TODO Régler pour clim cohérent on assume que la pièce fait 25m3
+    ]
+    ;;;; Pièces principales
+    if pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3[
+      set temperaturePrincipalRooms temperaturePrincipalRooms - ( (power / (84 * 100)) / 3600 ) ;;;;; TODO Régler pour clim cohérent on assume que la pièce fait 30m3
+    ]
+    ;;;; Salle de bain
+    if pcolor = 84.9[
+      set temperatureBathroom temperatureBathroom - ( (power / (25 * 100)) / 3600 )
+    ]
+  ]
+
+
 
 
   ;;1 tick = 1 seconde
@@ -1631,10 +1755,10 @@ end
 ; FIN GO
 @#$#@#$#@
 GRAPHICS-WINDOW
-668
-15
-1450
-497
+1065
+19
+1847
+501
 -1
 -1
 43.0
@@ -1675,10 +1799,10 @@ NIL
 1
 
 MONITOR
-946
-518
-1003
-563
+1372
+522
+1429
+567
 Jour
 day
 0
@@ -1686,10 +1810,10 @@ day
 11
 
 MONITOR
-946
-567
-1003
-612
+1372
+571
+1429
+616
 Heure
 hour
 0
@@ -1697,10 +1821,10 @@ hour
 11
 
 MONITOR
-1013
-517
-1070
-562
+1439
+521
+1496
+566
 Mois
 month
 0
@@ -1708,10 +1832,10 @@ month
 11
 
 MONITOR
-1078
-517
-1135
-562
+1504
+521
+1561
+566
 Année
 year
 17
@@ -1719,10 +1843,10 @@ year
 11
 
 MONITOR
-1013
-568
-1070
-613
+1439
+572
+1496
+617
 Minutes
 minute
 17
@@ -1730,10 +1854,10 @@ minute
 11
 
 MONITOR
-1077
-568
-1143
-613
+1503
+572
+1569
+617
 Secondes
 second
 17
@@ -1741,10 +1865,10 @@ second
 11
 
 MONITOR
-760
-18
-845
-63
+1157
+22
+1242
+67
 Température
 temperatureBathroom
 17
@@ -1752,10 +1876,10 @@ temperatureBathroom
 11
 
 MONITOR
-670
-450
-755
-495
+1067
+454
+1152
+499
 Température
 temperatureEntrance
 17
@@ -1763,10 +1887,10 @@ temperatureEntrance
 11
 
 MONITOR
-1129
-21
-1219
-66
+1526
+25
+1616
+70
 Température
 temperaturePrincipalRooms
 17
@@ -1774,10 +1898,10 @@ temperaturePrincipalRooms
 11
 
 MONITOR
-519
-58
-661
-103
+916
+62
+1058
+107
 Température Extérieur
 temperatureOutside
 17
@@ -1955,10 +2079,10 @@ Automne
 1
 
 MONITOR
-1182
-540
-1294
-585
+1608
+544
+1720
+589
 Saison
 season
 17
@@ -1966,10 +2090,10 @@ season
 11
 
 MONITOR
-532
-114
-657
-159
+929
+118
+1054
+163
 Luminosité extérieur
 luminosityOutside
 17
@@ -1977,10 +2101,10 @@ luminosityOutside
 11
 
 MONITOR
-847
-17
-914
-62
+1244
+21
+1311
+66
 Luminosité
 luminosityBathroom
 17
@@ -1988,10 +2112,10 @@ luminosityBathroom
 11
 
 MONITOR
-847
-449
-908
-494
+1244
+453
+1305
+498
 Luminosité
 luminosityEntrance
 17
@@ -1999,10 +2123,10 @@ luminosityEntrance
 11
 
 MONITOR
-1219
-21
-1290
-66
+1616
+25
+1687
+70
 Luminosité
 luminosityPrincipalRooms
 17
@@ -2111,7 +2235,7 @@ SWITCH
 690
 principalRoomsLampsOn
 principalRoomsLampsOn
-0
+1
 1
 -1000
 
@@ -2189,10 +2313,10 @@ h
 HORIZONTAL
 
 TEXTBOX
-488
-627
-638
-645
+733
+623
+883
+641
 Débug température
 11
 0.0
@@ -2265,6 +2389,110 @@ principalRoomsWindowsOpen
 1
 1
 -1000
+
+SWITCH
+904
+674
+1047
+707
+entranceHeater
+entranceHeater
+1
+1
+-1000
+
+SWITCH
+901
+716
+1048
+749
+bathroomHeater
+bathroomHeater
+1
+1
+-1000
+
+SWITCH
+901
+765
+1076
+798
+principalRoomsHeater
+principalRoomsHeater
+1
+1
+-1000
+
+SWITCH
+1070
+677
+1224
+710
+principalRoomsAC
+principalRoomsAC
+1
+1
+-1000
+
+TEXTBOX
+949
+651
+1099
+669
+Chauffage
+11
+0.0
+1
+
+TEXTBOX
+1129
+653
+1279
+671
+Clim\n
+11
+0.0
+1
+
+TEXTBOX
+738
+258
+888
+276
+Puissances Chauffage/Clim
+11
+0.0
+1
+
+SLIDER
+711
+287
+883
+320
+heaterPower
+heaterPower
+0
+4000
+1503.0
+1
+1
+W
+HORIZONTAL
+
+SLIDER
+712
+330
+884
+363
+ACPower
+ACPower
+0
+4000
+2242.0
+1
+1
+W
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
