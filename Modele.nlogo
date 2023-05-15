@@ -43,6 +43,13 @@ globals[
   datetimeSunrise
   datetimeSunset
   isNight ;;;; True si Nuit/Aube False si Jour/Crépuscule
+
+  ;;; Gestion saleté
+  dirtEntrance
+  dirtBedroom
+  dirtDiningRoom
+  dirtKitchen
+  dirtBathroom
 ]
 
 ; DECLARATION TURTLES
@@ -113,7 +120,7 @@ breed [roombaStations roombaStation]
 roombaStations-own [isRoombaOnStation isActive]
 
 breed [roombas roomba]
-roombas-own [bagCapacity dirtLevel battery isActive]
+roombas-own [bagCapacity dirtLevel battery xChargeStation yChargeStation isActive]
 
 
 ;; Meubles communs
@@ -195,7 +202,8 @@ breed [washingMachineSensors washingMachineSensor]
 breed [heaterSensors heaterSensor]
 breed [ACSensors ACSensor]
 
-;; TODO Utilisateur
+;; Utilisateur
+breed [utilisateurs utilisateur]
 
 
 
@@ -230,73 +238,73 @@ to readEphemeride [monthToRead dayToRead]
     let line (csv:from-row file-read-line ";")
     if first line = dayToRead [
       set isLineFound true
-	
+      	
       ;;; Lecture données Janvier
       if monthToRead = 1 [
         set sunriseHour (item 1 line)
         set sunsetHour (item 2 line)
       ]
-	
+      	
       ;;; Lecture données Février
       if monthToRead = 2 [
         set sunriseHour (item 3 line)
         set sunsetHour (item 4 line)
       ]
-	
+      	
       ;;; Lecture données Mars
       if monthToRead = 3 [
         set sunriseHour (item 5 line)
         set sunsetHour (item 6 line)
       ]
-	
+      	
       ;;; Lecture données Avril
       if monthToRead = 4 [
         set sunriseHour (item 7 line)
         set sunsetHour (item 8 line)
       ]
-	
+      	
       ;;; Lecture données Mai
       if monthToRead = 5 [
         set sunriseHour (item 9 line)
         set sunsetHour (item 10 line)
       ]
-	
+      	
       ;;; Lecture données Juin
       if monthToRead = 6 [
         set sunriseHour (item 11 line)
         set sunsetHour (item 12 line)
       ]
-	
+      	
       ;;; Lecture données Juillet
       if monthToRead = 7 [
         set sunriseHour (item 13 line)
         set sunsetHour (item 14 line)
       ]
-	
+      	
       ;;; Lecture données Aout
       if monthToRead = 8 [
         set sunriseHour (item 15 line)
         set sunsetHour (item 16 line)
       ]
-	
+      	
       ;;; Lecture données Septembre
       if monthToRead = 9 [
         set sunriseHour (item 17 line)
         set sunsetHour (item 18 line)
       ]
-	
+      	
       ;;; Lecture données Octobre
       if monthToRead = 10 [
         set sunriseHour (item 19 line)
         set sunsetHour (item 20 line)
       ]
-	
+      	
       ;;; Lecture données Novembre
       if monthToRead = 11 [
         set sunriseHour (item 21 line)
         set sunsetHour (item 22 line)
       ]
-	
+      	
       ;;; Lecture données Décembre
       if monthToRead = 12 [
         set sunriseHour (item 23 line)
@@ -309,10 +317,10 @@ to readEphemeride [monthToRead dayToRead]
   ;;; Formatage données temporelles de l'éphéméride vers objet time
   ;;;; Formatage heures en HH:mm
   if length (word sunriseHour) < 4 [
-   set sunriseHour (word "0" sunriseHour)
+    set sunriseHour (word "0" sunriseHour)
   ]
   if length (word sunsetHour) < 4 [
-   set sunsetHour (word "0" sunriseHour)
+    set sunsetHour (word "0" sunriseHour)
   ]
   set sunriseHour (word (substring (word sunriseHour) 0 2) ":" (substring (word sunriseHour) 2 4))
   set sunsetHour (word (substring (word sunsetHour) 0 2) ":" (substring (word sunsetHour) 2 4))
@@ -326,7 +334,7 @@ to setup
   clear-all
   reset-ticks
 
-  ;; Initialisation variables globales dynamiques
+  ;; Initialisation variables globales
   ;;; Calcul date
   ;;;; Récupération date
   let datetimeString date-and-time
@@ -388,16 +396,16 @@ to setup
 
   ;;; Calcul Saison
   if (month = 12 and day >= 21) or month = 1 or month = 2 or (month = 3 and day < 20)[
-   set season "Hiver"
+    set season "Hiver"
   ]
   if (month = 3 and day >= 21) or month = 4 or month = 5 or (month = 6 and day < 20)[
-   set season "Printemps"
+    set season "Printemps"
   ]
   if (month = 6 and day >= 21) or month = 7 or month = 8 or (month = 9 and day < 20)[
-   set season "Ete"
+    set season "Ete"
   ]
   if (month = 9 and day >= 21) or month = 10 or month = 11 or (month = 12 and day < 20)[
-   set season "Automne"
+    set season "Automne"
   ]
 
 
@@ -405,20 +413,20 @@ to setup
   ;;;; Choix de la température de la journée en fonction de la saison
   ;;;; TODO Améliorer le choix de la température de la journée pour la faire varier un peu plus
   if season = "Hiver" [
-   set targetTemperatureOutsideMin minTemperatureWinter + (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
-   set targetTemperatureOutsideMax maxTemperatureWinter - (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
+    set targetTemperatureOutsideMin minTemperatureWinter + (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
+    set targetTemperatureOutsideMax maxTemperatureWinter - (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
   ]
   if season = "Printemps" [
-   set targetTemperatureOutsideMin minTemperatureSpring + (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
-   set targetTemperatureOutsideMax maxTemperatureSpring - (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
+    set targetTemperatureOutsideMin minTemperatureSpring + (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
+    set targetTemperatureOutsideMax maxTemperatureSpring - (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
   ]
   if season = "Ete" [
-   set targetTemperatureOutsideMin minTemperatureSummer + (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
-   set targetTemperatureOutsideMax maxTemperatureSummer - (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
+    set targetTemperatureOutsideMin minTemperatureSummer + (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
+    set targetTemperatureOutsideMax maxTemperatureSummer - (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
   ]
   if season = "Automne" [
-   set targetTemperatureOutsideMin minTemperatureFall + (random ((maxTemperatureFall - minTemperatureFall) / 2))
-   set targetTemperatureOutsideMax maxTemperatureFall - (random ((maxTemperatureFall - minTemperatureFall) / 2))
+    set targetTemperatureOutsideMin minTemperatureFall + (random ((maxTemperatureFall - minTemperatureFall) / 2))
+    set targetTemperatureOutsideMax maxTemperatureFall - (random ((maxTemperatureFall - minTemperatureFall) / 2))
   ]
 
   ;;;; Calcul du temps restant avant le prochain extremum
@@ -438,7 +446,7 @@ to setup
   ifelse time:is-after? currentDateTime dateTimeTemperatureMax [
     set secondsBeforeExtremum time:difference-between currentDateTime dateTimeTemperatureMin "seconds"
   ][
-   ;;;;;; Si avant heure de la température min, utiliser l'heure de la température min
+    ;;;;;; Si avant heure de la température min, utiliser l'heure de la température min
     ifelse time:is-before? currentDateTime dateTimeTemperatureMin[
       set secondsBeforeExtremum time:difference-between currentDateTime dateTimeTemperatureMin "seconds"
     ][
@@ -499,15 +507,15 @@ to setup
   ;;; Tables
   ;;;; Tables salon
   ask patches with [ pxcor > 5 and pxcor < 10 and pycor = 1] [
-   sprout-tables 1
+    sprout-tables 1
     [
       set shape "square"
       set color brown
     ]
   ]
-   ;;;; Table SàM
-   ask patches with [ pxcor = 14 and pycor = 2] [
-   sprout-tables 1
+  ;;;; Table SàM
+  ask patches with [ pxcor = 14 and pycor = 2] [
+    sprout-tables 1
     [
       set shape "square"
       set color brown
@@ -516,7 +524,7 @@ to setup
 
   ;;;; Table Cuisine
   ask patches with [ pxcor = 16 and pycor = 7] [
-   sprout-tables 1
+    sprout-tables 1
     [
       set shape "square"
       set color brown
@@ -525,7 +533,7 @@ to setup
 
   ;;; Chaises
   ask patches with [ (pxcor = 13 or pxcor = 15) and (pycor = 1 or pycor = 3)] [
-   sprout-chairs 1
+    sprout-chairs 1
     [
       set shape "box"
       set color brown
@@ -534,7 +542,7 @@ to setup
 
   ;;; Lit
   ask patches with [ pxcor = 8 and pycor = 8] [
-   sprout-beds 1
+    sprout-beds 1
     [
       set shape "bed"
       set heading 0
@@ -546,7 +554,7 @@ to setup
 
   ;;; Commode
   ask patches with [ pxcor = 6 and pycor = 6] [
-   sprout-drawers 1
+    sprout-drawers 1
     [
       set shape "drawer"
       set heading 90
@@ -557,7 +565,7 @@ to setup
 
   ;;; Placard
   ask patches with [ pxcor = 16 and pycor = 9] [
-   sprout-cupboards 1
+    sprout-cupboards 1
     [
       set shape "square 2"
       set color brown
@@ -569,7 +577,7 @@ to setup
   ;;; SDB
   ;;;; Douche
   ask patches with [pxcor = 1 and pycor = 6] [
-   sprout-showers 1
+    sprout-showers 1
     [
       set shape "drop"
       set color cyan
@@ -597,7 +605,7 @@ to setup
 
   ;;;; Toilettes
   ask patches with [pxcor = 1 and pycor = 9] [
-   sprout-toilets 1
+    sprout-toilets 1
     [
       set shape "box"
       set color cyan
@@ -609,7 +617,7 @@ to setup
 
   ;;;; Evier
   ask patches with [(pxcor = 4 and pycor = 9) or (pxcor = 16 and pycor = 6)] [
-   sprout-sinks 1
+    sprout-sinks 1
     [
       set shape "chess rook"
       set color white
@@ -637,7 +645,7 @@ to setup
   ;;; Cuisine
   ;;;; Cafetiere
   ask patches with [pxcor = 12 and pycor = 9] [
-   sprout-coffeeMakers 1
+    sprout-coffeeMakers 1
     [
       set shape "tooth"
       set color black
@@ -664,7 +672,7 @@ to setup
   ]
   ;;;; Plaque
   ask patches with [pxcor = 12 and pycor = 8] [
-   sprout-hotplates 1
+    sprout-hotplates 1
     [
       set shape "molecule oxygen"
       set heading 0
@@ -693,7 +701,7 @@ to setup
   ]
   ;;;; Hotte
   ask patches with [pxcor = 12 and pycor = 8] [
-   sprout-hoods 1
+    sprout-hoods 1
     [
       set shape "lander"
       set heading 0
@@ -704,7 +712,7 @@ to setup
   ]
   ;;;; Lave-linge
   ask patches with [pxcor = 2 and pycor = 6] [
-   sprout-washingMachines 1
+    sprout-washingMachines 1
     [
       set shape "lavelinge"
       set heading 0
@@ -716,7 +724,7 @@ to setup
   ]
   ;;;; Sèche-linge
   ask patches with [pxcor = 4 and pycor = 6] [
-   sprout-dryers 1
+    sprout-dryers 1
     [
       set shape "square"
       set heading 0
@@ -745,7 +753,7 @@ to setup
   ]
   ;;;; Four
   ask patches with [pxcor = 12 and pycor = 6] [
-   sprout-ovens 1
+    sprout-ovens 1
     [
       set shape "square"
       set heading 0
@@ -777,7 +785,7 @@ to setup
 
   ;;;; Lave-vaisselle
   ask patches with [pxcor = 16 and pycor = 8] [
-   sprout-dishwashers 1
+    sprout-dishwashers 1
     [
       set shape "square"
       set heading 0
@@ -809,7 +817,7 @@ to setup
 
   ;;;; Frigo
   ask patches with [pxcor = 12 and pycor = 7] [
-   sprout-fridges 1
+    sprout-fridges 1
     [
       set shape "square 2"
       set heading 0
@@ -825,7 +833,7 @@ to setup
   ]
   ;;;; Panier à linge
   ask patches with [pxcor = 16 and pycor = 5] [
-   sprout-laundryBaskets 1
+    sprout-laundryBaskets 1
     [
       set shape "garbage can"
       set heading 0
@@ -835,7 +843,7 @@ to setup
   ]
   ;;;; Four à micro ondes
   ask patches with [pxcor = 12 and pycor = 5] [
-   sprout-microwaves 1
+    sprout-microwaves 1
     [
       set shape "square"
       set heading 0
@@ -847,7 +855,7 @@ to setup
   ]
   ;;;; Bibliothèque
   ask patches with [pxcor = 14 and pycor = 9] [
-   sprout-bookcases 1
+    sprout-bookcases 1
     [
       set shape "container"
       set color brown
@@ -858,17 +866,17 @@ to setup
   ;;; Salle à manger
   ;;;; Station roomba
   ask patches with [pxcor = 11 and pycor = 1] [
-   sprout-roombaStations 1
+    sprout-roombaStations 1
     [
       set shape "circle 2"
       set color grey
-      set isRoombaOnStation 1
+      set isRoombaOnStation true
       set isActive false
     ]
   ]
   ;;;; Roomba
   ask patches with [pxcor = 11 and pycor = 1] [
-   sprout-roombas 1
+    sprout-roombas 1
     [
       set shape "circle"
       set color grey
@@ -876,6 +884,8 @@ to setup
       set bagCapacity 0
       set dirtLevel 0
       set battery 100
+      set xchargestation 11
+      set ychargestation 1
       set isActive false
     ]
   ]
@@ -891,7 +901,7 @@ to setup
     or (pxcor = 13 and pycor = 2)
     or (pxcor = 14 and pycor = 6)
   ][
-   sprout-lights 1[
+    sprout-lights 1[
       set shape "triangle 2"
       set color yellow
       set size 0.6
@@ -907,7 +917,7 @@ to setup
     or (pxcor = 12 and pycor = 1)
     or (pxcor = 4 and pycor = 7)
   ][
-   sprout-heaters 1[
+    sprout-heaters 1[
       set shape "container"
       set color white
       set power heaterPower
@@ -936,7 +946,7 @@ to setup
   [
     pxcor = 16 and pycor = 2
   ][
-   sprout-ACs 1[
+    sprout-ACs 1[
       set shape "computer server"
       set color white
       set power ACPower
@@ -966,7 +976,7 @@ to setup
   [
     pxcor = 12 and pycor = 4
   ][
-   sprout-alarms 1[
+    sprout-alarms 1[
       set shape "coin tails"
       set color white
       set size 0.7
@@ -976,7 +986,7 @@ to setup
 
   ;; Création des fenêtres et volets
   ask patches with [pcolor = 105] [
-   sprout-windows 1
+    sprout-windows 1
     [
       set shape "square 2"
       set color cyan
@@ -993,7 +1003,7 @@ to setup
   ;; Création des objets
   ;;; Extincteur
   ask patches with [ pxcor = 1 and pycor = 4] [
-   sprout-extinguishers 1
+    sprout-extinguishers 1
     [
       set shape "bottle"
       set heading 0
@@ -1126,6 +1136,14 @@ to setup
     ]
   ]
 
+  ;; Création de l'utilisateur à la porte d'entrée
+  ask patches with [pxcor = 0 and pycor = 3][
+    sprout-utilisateurs 1 [
+      set shape "person"
+      set color white
+    ]
+  ]
+
   ;; Initialisation variable Luminosité intérieur
   ;;; Check variable debug lights TODO RETIRER CA
   ask lights with [pcolor = 64.7][
@@ -1157,26 +1175,26 @@ to setup
   ask shutters with [any?(neighbors with[pcolor = 64.7])][
     set isOpen not entranceShuttersDown
     ifelse isOpen [
-        set color cyan
-      ][
-        set color gray
-      ]
+      set color cyan
+    ][
+      set color gray
+    ]
   ]
   ask shutters with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])][
     set isOpen not principalRoomsShuttersDown
     ifelse isOpen [
-        set color cyan
-      ][
-        set color gray
-      ]
+      set color cyan
+    ][
+      set color gray
+    ]
   ]
   ask shutters with [any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])])][
     set isOpen not principalRoomsShuttersDown
     ifelse isOpen [
-        set color cyan
-      ][
-        set color gray
-      ]
+      set color cyan
+    ][
+      set color gray
+    ]
   ]
 
   ;;; Check variable debug fenetres TODO RETIRER CA
@@ -1307,7 +1325,6 @@ to setup
     ]
   ]
 
-
 end
 ; FIN SETUP
 
@@ -1332,28 +1349,22 @@ to newDay
 
   ;;; Définition saison en fonction de la date
   if ((month = 12 and day >= 21) or month = 1 or month = 2 or (month = 3 and day < 20)) and season != "Hiver"[
-   set season "Hiver"
+    set season "Hiver"
   ]
   if ((month = 3 and day >= 21) or month = 4 or month = 5 or (month = 6 and day < 20)) and season != "Printemps"[
-   set season "Printemps"
+    set season "Printemps"
   ]
   if ((month = 6 and day >= 21) or month = 7 or month = 8 or (month = 9 and day < 20)) and season != "Ete"[
-   set season "Ete"
+    set season "Ete"
   ]
   if ((month = 9 and day >= 21) or month = 10 or month = 11 or (month = 12 and day < 20)) and season != "Automne"[
-   set season "Automne"
+    set season "Automne"
   ]
 end
 
-; GO
-to go
-  ;; Gestion nouvelle journée
-  if hour = 0 and minute = 0 and second = 0 [
-    newDay
-  ]
-
-  ;; Gestion de la lumière
-  ;;; Debug lights TODO RETIRER CA
+; Gestion de la lumière
+to lightManagement
+  ;; Debug lights TODO RETIRER CA
   ask lights with [isActive != entranceLampOn and pcolor = 64.7][
     set isActive entranceLampOn
     ifelse isActive [
@@ -1379,7 +1390,7 @@ to go
     ]
   ]
 
-  ;;; Debug volets TODO RETIRER CA
+  ;; Debug volets TODO RETIRER CA
   ask shutters with [isOpen = entranceShuttersDown][
     if any?(neighbors with [pcolor = 64.7])[
       set isOpen not entranceShuttersDown
@@ -1399,7 +1410,7 @@ to go
         set color gray
       ]
     ]
-    ;;;; Cas patch marron
+    ;;; Cas patch marron
     if any?(neighbors with [pcolor = 23.3])[
       let shutterRoom ""
       ask neighbors with [pcolor = 23.3][
@@ -1421,7 +1432,7 @@ to go
     ]
   ]
 
-  ;;; Debug fenetres TODO RETIRER CA
+  ;; Debug fenetres TODO RETIRER CA
   ask windows with [any?(neighbors with[pcolor = 64.7]) and isOpen != entranceWindowsOpen][
     set isOpen entranceWindowsOpen
     ifelse isOpen [
@@ -1467,8 +1478,8 @@ to go
 
 
 
-  ;;; Lumière extérieure
-  ;;;; Aube
+  ;; Lumière extérieure
+  ;;; Aube
   if (time:is-after? currentDateTime datetimeSunrise and time:is-before? currentDateTime datetimeSunset and isNight)[
     if luminosityOutside >= 0 and luminosityOutside < outsideMaxLuminosity [
       set luminosityOutside (luminosityOutside + (outsideMaxLuminosity / 2700))
@@ -1483,7 +1494,7 @@ to go
       set isNight false
     ]
   ]
-  ;;;; Crépuscule
+  ;;; Crépuscule
   if (time:is-after? currentDateTime datetimeSunset and not isNight)[
     if luminosityOutside > 0 [
       set luminosityOutside (luminosityOutside - (outsideMaxLuminosity / 2700))
@@ -1496,13 +1507,13 @@ to go
     ]
   ]
 
-  ;;; Lumière intérieure
-  ;;;; Gestion de la luminosité des pièces sans fenêtre (Salle de bain)
+  ;; Lumière intérieure
+  ;;; Gestion de la luminosité des pièces sans fenêtre (Salle de bain)
   if not any?(lights with [pcolor = 84.9 and isActive])[
     set luminosityBathroom 0
   ]
-  ;;;; Gestion de la luminosité des pièces avec fenêtres sans volets ouverts
-  ;;;;; Pièces principales
+  ;;; Gestion de la luminosité des pièces avec fenêtres sans volets ouverts
+  ;;;; Pièces principales
   if not any?(shutters with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3]) and isOpen])[
     let principalRoomsMaxLuminosity 0
     ask lights with[(pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3) and isActive][
@@ -1510,7 +1521,7 @@ to go
     ]
     set luminosityPrincipalRooms principalRoomsMaxLuminosity
   ]
-  ;;;;; Entrée
+  ;;;; Entrée
   if not any?(shutters with [any?(neighbors with[pcolor = 64.7]) and isOpen])[
     let entranceMaxLuminosity 0
     ask lights with[pcolor = 64.7 and isActive][
@@ -1519,11 +1530,11 @@ to go
     set luminosityEntrance entranceMaxLuminosity
   ]
 
-  ;;;; Gestion lumière naturelle (Volets)
+  ;;; Gestion lumière naturelle (Volets)
   ask shutters with [isOpen = true][
-    ;;;;; Volet entrée
+    ;;;; Volet entrée
     if any?(neighbors with [pcolor = 64.7])[
-      ;;;;;; Check luminosité lampe entrée
+      ;;;;; Check luminosité lampe entrée
       let entranceMaxLuminosity luminosityOutside
       ask lights with [isActive and pcolor = 64.7][
         if luminosity > entranceMaxLuminosity[
@@ -1533,9 +1544,9 @@ to go
       set luminosityEntrance entranceMaxLuminosity
     ]
 
-    ;;;;; Volet pièce principale
+    ;;;; Volet pièce principale
     if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
-      ;;;;;; Check luminosite lights pièces principales
+      ;;;;; Check luminosite lights pièces principales
       let principalRoomsMaxLuminosity luminosityOutside
       ask lights with [isActive and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
         if luminosity > principalRoomsMaxLuminosity[
@@ -1545,7 +1556,7 @@ to go
       set luminosityPrincipalRooms principalRoomsMaxLuminosity
     ]
 
-    ;;;;; Si volet à côté de patch marron, regarder les patchs à côté pour trouver la pièce
+    ;;;; Si volet à côté de patch marron, regarder les patchs à côté pour trouver la pièce
     if any?(neighbors with [pcolor = 23.3])[
       let shutterRoom ""
       ask neighbors with [pcolor = 23.3][
@@ -1557,7 +1568,7 @@ to go
         ]
       ]
       if shutterRoom = "E"[
-        ;;;;;; Check luminosite lampe entree
+        ;;;;; Check luminosite lampe entree
         let entranceMaxLuminosity luminosityOutside
         ask lights with [isActive and pcolor = 64.7][
           if luminosity > entranceMaxLuminosity[
@@ -1567,7 +1578,7 @@ to go
         set luminosityEntrance entranceMaxLuminosity
       ]
       if shutterRoom = "PP"[
-        ;;;;;; Check luminosite lights pièces principales
+        ;;;;; Check luminosite lights pièces principales
         let principalRoomsMaxLuminosity luminosityOutside
         ask lights with [isActive and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
           if luminosity > principalRoomsMaxLuminosity[
@@ -1579,24 +1590,26 @@ to go
     ]
   ]
 
-  ;;;; Lumière des lampes
+  ;;; Lumière des lampes
   ask lights with [isActive = true][
-    ;;;;; Si luminosité inférieur à celui de la lampe (ex: nuit/volets fermés)
-    ;;;;;; Pièces principales
+    ;;;; Si luminosité inférieur à celui de la lampe (ex: nuit/volets fermés)
+    ;;;;; Pièces principales
     if (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3) and luminosityPrincipalRooms < luminosity [
       set luminosityPrincipalRooms luminosity
     ]
-    ;;;;;; Entrée
+    ;;;;; Entrée
     if pcolor = 64.7 and luminosityEntrance < luminosity [
       set luminosityEntrance luminosity
     ]
-    ;;;;;; Salle de bain
+    ;;;;; Salle de bain
     if pcolor = 84.9 and luminosityBathroom < luminosity [
       set luminosityBathroom luminosity
     ]
   ]
+end
 
-  ;; Gestion de la température extérieure
+; Gestion de la température extérieure
+to temperatureOutsideManagement
   ;;; Si heure du pic atteint, alors temperatureOutside = temperature du pic et on met le datetime du prochain pic au lendemain
   if time:is-equal? currentDateTime dateTimeTemperatureMax[
     set temperatureOutside targetTemperatureOutsideMax
@@ -1640,8 +1653,10 @@ to go
   ][ ;;; Sinon (entre 2 extremums), monter la température
     set temperatureOutside temperatureOutside + ((targetTemperatureOutsideMax - targetTemperatureOutsideMin) / secondsBetweenExtremums)
   ]
+end
 
-
+; Gestion du thermostat
+to thermostatManagement
   ;; Activation Chauffage
   ;;;; Allumage chauffage Debug TODO Retirer
   if entranceHeater = true[
@@ -1745,9 +1760,10 @@ to go
       ]
     ]
   ]
+end
 
-
-  ;; Gestion de la température intérieure
+; Gestion de la température intérieure
+to insideTemperatureManagement
   ;;; Echange passif avec extérieur
   ;;;; Si au moins 1 fenêtre ouverte dans les pièces principales, isolation avec l'extérieur divisé par 100
   ifelse any?(windows with [isOpen = true and (any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3]) or any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])]))])
@@ -1784,11 +1800,11 @@ to go
   ask heaters with [isActive = true][
     ;;;; Entrée
     if pcolor = 64.7[
-      set temperatureEntrance temperatureEntrance + ( (power / (25 * 70)) / 3600 ) ;;;;; TODO Régler pour chauffage cohérent on assume que la pièce fait 25m3 (9m², 2.8m de hauteur)
+      set temperatureEntrance temperatureEntrance + ( (power / (25 * 70)) / 3600 ) ;;;;; On assume que la pièce fait 25m3 (9m², 2.8m de hauteur)
     ]
     ;;;; Pièces principales
     if pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3[
-      set temperaturePrincipalRooms temperaturePrincipalRooms + ( (power / (84 * 70)) / 3600 ) ;;;;; TODO Régler pour chauffage cohérent on assume que la pièce fait 84m3 (30m², 2.8m de hauteur)
+      set temperaturePrincipalRooms temperaturePrincipalRooms + ( (power / (84 * 70)) / 3600 ) ;;;;; On assume que la pièce fait 84m3 (30m², 2.8m de hauteur)
     ]
     ;;;; Salle de bain
     if pcolor = 84.9[
@@ -1801,20 +1817,124 @@ to go
   ask ACs with [isActive = true][
     ;;;; Entrée
     if pcolor = 64.7[
-      set temperatureEntrance temperatureEntrance - ( (power / (25 * 100)) / 3600 ) ;;;;; TODO Régler pour clim cohérent on assume que la pièce fait 25m3
+      set temperatureEntrance temperatureEntrance - ( (power / (25 * 100)) / 3600 ) ;;;;; On assume que la pièce fait 25m3
     ]
     ;;;; Pièces principales
     if pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3[
-      set temperaturePrincipalRooms temperaturePrincipalRooms - ( (power / (84 * 100)) / 3600 ) ;;;;; TODO Régler pour clim cohérent on assume que la pièce fait 30m3
+      set temperaturePrincipalRooms temperaturePrincipalRooms - ( (power / (84 * 100)) / 3600 ) ;;;;; On assume que la pièce fait 30m3
     ]
     ;;;; Salle de bain
     if pcolor = 84.9[
       set temperatureBathroom temperatureBathroom - ( (power / (25 * 100)) / 3600 )
     ]
   ]
+end
+
+; Gestion de la saleté
+to dirtManagement
+  ;; On assume qu'une pièce met 1 semaine à être sale
+  set dirtEntrance dirtEntrance + (1 / 604800)
+  set dirtBedroom dirtBedroom + (1 / 604800)
+  set dirtDiningRoom dirtDiningRoom + (1 / 604800)
+  set dirtKitchen dirtKitchen + (1 / 604800)
+  set dirtBathroom dirtBathroom + (1 / 604800)
+end
+
+; Comportement roomba
+to roombaBehaviour
+  ask roombas[
+    ;;; Si sur station
+    ifelse any?(roombaStations-here with [isRoombaOnStation])[
+      ;;;; Déconnexion station si chargé
+      ifelse battery = 100[
+        ask roombaStations-here[
+          set isRoombaOnStation false
+        ]
+        set isActive true
+      ][
+        ;;;; Chargement
+        ;;;; On assume que le roomba met 90 minutes à charger (iRobot roomba i7)
+        set battery battery + ( 1 / 5400 )
+        if battery > 100 [
+          set battery 100
+        ]
+      ]
+    ][
+      ;;; Si libre
+      ifelse battery > 15 [
+        ;;;; Mouvement aléatoire
+        move-to one-of neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3 or pcolor = 64.7 or pcolor = 84.9 or pcolor = 6.3]
+        let x xcor
+        let y ycor
+        ;;;; Le capteur bouge avec le roomba
+        ask my-sensorLinks[
+          ask other-end[
+            move-to patch x y
+          ]
+        ]
+      ][
+        ;;;; TODO Mouvement vers station de charge si batterie faible (Pathfinding A*)
+      ]
+
+      ;;;; Nettoyage de la pièce
+      ;;;;; Entrée
+      if [pcolor] of patch-here = 64.7 and dirtEntrance >= ( 1 / 60 )[
+        set dirtEntrance dirtEntrance - ( 1 / 60 )
+      ]
+      ;;;;; Pièces principales
+      if [pcolor] of patch-here = 126.3 and dirtBedroom >= ( 1 / 60 )[
+        set dirtBedroom dirtBedroom - ( 1 / 60 )
+      ]
+      if [pcolor] of patch-here = 44.4 and dirtKitchen >= ( 1 / 60 )[
+        set dirtKitchen dirtKitchen - ( 1 / 60 )
+      ]
+      if [pcolor] of patch-here = 14.4 and dirtDiningRoom >= ( 1 / 60 )[
+        set dirtDiningRoom dirtDiningRoom - ( 1 / 60 )
+      ]
+      ;;;;; Salle de bain
+      if pcolor = 84.9 and dirtBathroom >= ( 1 / 60 )[
+        set dirtBathroom dirtBathroom - ( 1 / 60 )
+      ]
 
 
+      ;;;; Déchargement de la batterie
+      ;;;; On assume que le roomba a une autonomie de 75 minutes (Roomba i7)
+      set battery battery - (1 / 4500)
+    ]
+  ]
+end
 
+; Fonction GO
+to go
+  ;; Gestion nouvelle journée
+  if hour = 0 and minute = 0 and second = 0 [
+    newDay
+  ]
+
+  ;; Appel gestion de la lumière
+  lightManagement
+
+  ;; Appel Gestion de la température extérieure
+  temperatureOutsideManagement
+
+  ;; Appel gestion du thermostat
+  thermostatManagement
+
+  ;; Appel gestion de la température intérieure
+  insideTemperatureManagement
+
+  ;; Gestion de la saleté
+  dirtManagement
+
+  ;; Appel comportement Roomba
+  roombaBehaviour
+
+  ;; TODO Comportement Utilisateur
+
+
+  ;; TODO Comportement Capteurs
+
+  ;; TODO Export des données
 
   ;;1 tick = 1 seconde
   incrementOneSecond
@@ -2045,7 +2165,7 @@ maxTemperatureSpring
 maxTemperatureSpring
 minTemperatureSpring
 50
-23.0
+30.0
 1
 1
 °C
@@ -2130,7 +2250,7 @@ maxTemperatureFall
 maxTemperatureFall
 minTemperatureFall
 50
-14.0
+21.0
 1
 1
 °C
@@ -2374,7 +2494,7 @@ maxTemperatureHour
 maxTemperatureHour
 minTemperatureHour
 23
-16.0
+21.0
 1
 1
 h
@@ -2541,7 +2661,7 @@ heaterPower
 heaterPower
 0
 4000
-1503.0
+1506.0
 1
 1
 W
@@ -2576,6 +2696,61 @@ thermostat
 1
 °C
 HORIZONTAL
+
+MONITOR
+1113
+408
+1196
+453
+Saleté
+dirtEntrance
+17
+1
+11
+
+MONITOR
+1071
+127
+1128
+172
+Saleté
+dirtBathroom
+17
+1
+11
+
+MONITOR
+1377
+26
+1460
+71
+Saleté
+dirtBedroom
+17
+1
+11
+
+MONITOR
+1561
+454
+1618
+499
+Saleté
+dirtDiningRoom
+17
+1
+11
+
+MONITOR
+1745
+23
+1819
+68
+Saleté
+dirtKitchen
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
