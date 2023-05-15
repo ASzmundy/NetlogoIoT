@@ -203,7 +203,7 @@ breed [heaterSensors heaterSensor]
 breed [ACSensors ACSensor]
 
 ;; Utilisateur
-breed [utilisateurs utilisateur]
+breed [users user]
 
 
 
@@ -1138,7 +1138,7 @@ to setup
 
   ;; Création de l'utilisateur à la porte d'entrée
   ask patches with [pxcor = 0 and pycor = 3][
-    sprout-utilisateurs 1 [
+    sprout-users 1 [
       set shape "person"
       set color white
     ]
@@ -1904,6 +1904,12 @@ to roombaBehaviour
   ]
 end
 
+; Comportement Utilisateur
+to userBehaviour
+
+end
+
+
 ; Fonction GO
 to go
   ;; Gestion nouvelle journée
@@ -1930,7 +1936,7 @@ to go
   roombaBehaviour
 
   ;; TODO Comportement Utilisateur
-
+  userBehaviour
 
   ;; TODO Comportement Capteurs
 
