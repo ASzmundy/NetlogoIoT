@@ -1,9 +1,19 @@
 ; EXTENSIONS
 extensions [time csv]
 
+; VARIABLES PATCHS POUR PATHFINDING
+patches-own
+[
+  parent-patch ; patch's predecessor
+  f ; the value of knowledge plus heuristic cost function f()
+  g ; the value of knowledge cost function g()
+  h ; the value of heuristic cost function h()
+]
+
 
 ; VARIABLES GLOBALES
 globals[
+
   ;;; Date et heure
   currentDateTime
   day
@@ -120,7 +130,7 @@ breed [roombaStations roombaStation]
 roombaStations-own [isRoombaOnStation isActive]
 
 breed [roombas roomba]
-roombas-own [bagCapacity dirtLevel battery xChargeStation yChargeStation isActive]
+roombas-own [bagCapacity dirtLevel battery isActive current-path path isEnRoute targetPatch]
 
 
 ;; Meubles communs
@@ -204,6 +214,9 @@ breed [ACSensors ACSensor]
 
 ;; Utilisateur
 breed [users user]
+users-own[
+
+]
 
 
 
@@ -884,9 +897,10 @@ to setup
       set bagCapacity 0
       set dirtLevel 0
       set battery 100
-      set xchargestation 11
-      set ychargestation 1
-      set isActive false
+      set isActive true
+      set isEnRoute false
+      set targetPatch patch-at 0 0
+      set current-path []
     ]
   ]
 
@@ -1834,28 +1848,167 @@ end
 ; Gestion de la saleté
 to dirtManagement
   ;; On assume qu'une pièce met 1 semaine à être sale
-  set dirtEntrance dirtEntrance + (1 / 604800)
-  set dirtBedroom dirtBedroom + (1 / 604800)
-  set dirtDiningRoom dirtDiningRoom + (1 / 604800)
-  set dirtKitchen dirtKitchen + (1 / 604800)
-  set dirtBathroom dirtBathroom + (1 / 604800)
+  ;;; Entrée
+  if dirtEntrance < 100 [
+    set dirtEntrance dirtEntrance + (100 / 604800)
+  ]
+  if dirtEntrance > 100 [
+   set dirtEntrance 100
+  ]
+  ;;; Chambre
+  if dirtBedroom < 100 [
+    set dirtBedroom dirtBedroom + (100 / 604800)
+  ]
+  if dirtBedroom > 100 [
+   set dirtBedroom 100
+  ]
+  ;;; Salle à manger
+  if dirtDiningroom < 100 [
+    set dirtDiningRoom dirtDiningRoom + (100 / 604800)
+  ]
+  if dirtDiningRoom > 100 [
+   set dirtDiningRoom 100
+  ]
+  ;;; Cuisine
+  if dirtKitchen < 100 [
+    set dirtKitchen dirtKitchen + (100 / 604800)
+  ]
+  if dirtKitchen > 100 [
+   set dirtKitchen 100
+  ]
+  ;;; Salle de bain
+  if dirtBathroom < 100 [
+    set dirtBathroom dirtBathroom + (100 / 604800)
+  ]
+  if dirtBathroom > 100 [
+   set dirtBathroom 100
+  ]
+end
+
+
+; Pathfinding TODO
+;; Recherche de chemin via A*
+to-report findPath [source-patch destination-patch]
+
+  ; initialize all variables to default values
+  let search-done false
+  let search-path []
+  let current-patch 0
+  let open []
+  let closed []
+
+  ; add source patch in the open list
+  set open lput source-patch open
+
+  ; loop until we reach the destination or the open list becomes empty
+  while [search-done != true][
+    ifelse length open != 0[
+
+      ; take the first patch in the open list
+      ; as the current patch (which is currently being explored (n))
+      ; and remove it from the open list
+      set current-patch item 0 open
+      set open remove-item 0 open
+
+      ; add the current patch to the closed list
+      set closed lput current-patch closed
+
+      ; explore the Von Neumann (left, right, top and bottom) neighbors of the current patch
+      ask current-patch[
+        ; if any of the neighbors is the destination stop the search process
+        ifelse any? neighbors with [ (pxcor = [ pxcor ] of destination-patch) and (pycor = [pycor] of destination-patch)][
+          set search-done true
+        ]
+        [
+          ; the neighbors should not be obstacles or already explored patches (part of the closed list)
+          ask neighbors with [pcolor != 0 and pcolor != 105 and pcolor != 23.3 and (not member? self closed) and (self != parent-patch)]
+          [
+            ; the neighbors to be explored should also not be the source or
+            ; destination patches or already a part of the open list (unexplored patches list)
+            if not member? self open and self != source-patch and self != destination-patch
+            [
+              ; add the eligible patch to the open list
+              set open lput self open
+
+              ; update the path finding variables of the eligible patch
+              set parent-patch current-patch
+              set g [g] of parent-patch  + 1
+              set h distance destination-patch
+              set f (g + h)
+            ]
+          ]
+        ]
+      ]
+    ]
+    [
+      ; if a path is not found (search is incomplete) and the open list is exhausted
+      ; display a user message and report an empty search path list.
+      report []
+    ]
+  ]
+
+  ; if a path is found (search completed) add the current patch
+  ; (node adjacent to the destination) to the search path.
+  set search-path lput current-patch search-path
+
+  ; trace the search path from the current patch
+  ; all the way to the source patch using the parent patch
+  ; variable which was set during the search for every patch that was explored
+  let temp first search-path
+  while [ temp != source-patch ]
+  [
+    set search-path lput [parent-patch] of temp search-path
+    set temp [parent-patch] of temp
+  ]
+
+  ; add the destination patch to the front of the search path
+  set search-path fput destination-patch search-path
+
+  ; reverse the search path so that it starts from a patch adjacent to the
+  ; source patch and ends at the destination patch
+  set search-path reverse search-path
+
+  ; report the search path
+  report search-path
+end
+
+
+;; make the turtle traverse (move through) the path all the way to the destination patch
+to moveToPatch
+  while [length current-path != 0]
+  [
+    go-to-next-patch-in-current-path
+  ]
+end
+
+to go-to-next-patch-in-current-path
+  face first current-path
+  move-to first current-path
+  set current-path remove-item 0 current-path
+end
+
+to find-shortest-path-to-destination
+  set path findPath patch-here targetPatch
+  let optimal-path path
+  set current-path path
 end
 
 ; Comportement roomba
 to roombaBehaviour
   ask roombas[
     ;;; Si sur station
-    ifelse any?(roombaStations-here with [isRoombaOnStation])[
+    ifelse isActive = false and any?(roombaStations-here with [isRoombaOnStation and isActive])[
       ;;;; Déconnexion station si chargé
       ifelse battery = 100[
         ask roombaStations-here[
           set isRoombaOnStation false
+          set isActive false
         ]
         set isActive true
       ][
         ;;;; Chargement
         ;;;; On assume que le roomba met 90 minutes à charger (iRobot roomba i7)
-        set battery battery + ( 1 / 5400 )
+        set battery battery + ( 100 / 5400 )
         if battery > 100 [
           set battery 100
         ]
@@ -1863,8 +2016,8 @@ to roombaBehaviour
     ][
       ;;; Si libre
       ifelse battery > 15 [
-        ;;;; Mouvement aléatoire
-        move-to one-of neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3 or pcolor = 64.7 or pcolor = 84.9 or pcolor = 6.3]
+        ;;;; Mouvement aléatoire TODO Remplacer par mouvement rectiligne
+        move-to one-of neighbors with [pcolor != 0 and pcolor != 105 and pcolor != 23.3]
         let x xcor
         let y ycor
         ;;;; Le capteur bouge avec le roomba
@@ -1874,35 +2027,98 @@ to roombaBehaviour
           ]
         ]
       ][
-        ;;;; TODO Mouvement vers station de charge si batterie faible (Pathfinding A*)
+        ;;;; Si batterie faible, va vers la station cible
+        ifelse isEnRoute[
+          moveToPatch
+          let x xcor
+          let y ycor
+          ;;;; Le capteur bouge avec le roomba
+          ask my-sensorLinks[
+            ask other-end[
+              move-to patch x y
+            ]
+          ]
+          ;;;; Si sur le patch monte sur la station
+          if patch-here = targetPatch[
+            set isEnRoute false
+            set targetPatch patch-at 0 0
+            set isActive false
+            ask roombaStations-here[
+              set isRoombaOnStation true
+              set isActive true
+            ]
+          ]
+        ][
+          ;;;; Recherche de la station roomba proche
+          let targetPatchTmp patch-at 0 0
+          let isFound false
+          ask roombaStations with [isRoombaOnStation = false][
+            set targetPatchTmp patch-here
+            set isFound true
+          ]
+          ;;;; Si station libre, cherche un chemin
+          if isFound[
+            set targetPatch targetPatchTmp
+            set isFound false
+          ]
+          find-shortest-path-to-destination
+          set isEnRoute true
+        ]
       ]
 
-      ;;;; Nettoyage de la pièce
+      ;;;; Détection saleté et nettoyage de la pièce
       ;;;;; Entrée
-      if [pcolor] of patch-here = 64.7 and dirtEntrance >= ( 1 / 60 )[
-        set dirtEntrance dirtEntrance - ( 1 / 60 )
+      if [pcolor] of patch-here = 64.7[
+        set dirtLevel dirtEntrance
+        set dirtEntrance dirtEntrance - ( 100 / 60 )
+        if dirtEntrance < 0[
+         set dirtEntrance 0
+        ]
       ]
       ;;;;; Pièces principales
-      if [pcolor] of patch-here = 126.3 and dirtBedroom >= ( 1 / 60 )[
-        set dirtBedroom dirtBedroom - ( 1 / 60 )
+      if [pcolor] of patch-here = 126.3[
+        set dirtLevel dirtBedroom
+        set dirtBedroom dirtBedroom - ( 100 / 60 )
+        if dirtBedroom < 0[
+         set dirtBedroom 0
+        ]
       ]
-      if [pcolor] of patch-here = 44.4 and dirtKitchen >= ( 1 / 60 )[
-        set dirtKitchen dirtKitchen - ( 1 / 60 )
+      if [pcolor] of patch-here = 44.4[
+        set dirtLevel dirtKitchen
+        set dirtKitchen dirtKitchen - ( 100 / 60 )
+        if dirtKitchen < 0[
+         set dirtKitchen 0
+        ]
       ]
-      if [pcolor] of patch-here = 14.4 and dirtDiningRoom >= ( 1 / 60 )[
-        set dirtDiningRoom dirtDiningRoom - ( 1 / 60 )
+      if [pcolor] of patch-here = 14.4[
+        set dirtLevel dirtDiningRoom
+        set dirtDiningRoom dirtDiningRoom - ( 100 / 60 )
+        if dirtDiningRoom < 0[
+         set dirtDiningRoom 0
+        ]
       ]
       ;;;;; Salle de bain
-      if pcolor = 84.9 and dirtBathroom >= ( 1 / 60 )[
-        set dirtBathroom dirtBathroom - ( 1 / 60 )
+      if [pcolor] of patch-here = 84.9[
+        set dirtLevel dirtBathroom
+        set dirtBathroom dirtBathroom - ( 100 / 60 )
+        if dirtBathroom < 0[
+         set dirtBathroom 0
+        ]
       ]
 
-
       ;;;; Déchargement de la batterie
-      ;;;; On assume que le roomba a une autonomie de 75 minutes (Roomba i7)
-      set battery battery - (1 / 4500)
+      ;;;; On assume que le roomba a une autonomie de 75 minutes (iRobot Roomba i7)
+      set battery battery - (100 / 4500)
+      if battery < 0[
+        set battery 0
+      ]
     ]
   ]
+end
+
+; Comportement station Roomba
+to roombaStationBehaviour
+
 end
 
 ; Comportement Utilisateur
@@ -1910,6 +2126,15 @@ to userBehaviour
 
 end
 
+; Comportement Capteurs
+to sensorBehaviour
+
+end
+
+; Ecriture des données
+to writeData
+
+end
 
 ; Fonction GO
 to go
@@ -1936,12 +2161,17 @@ to go
   ;; Appel comportement Roomba
   roombaBehaviour
 
+  ;; TODO Appel comportement Roomba
+  roombaStationBehaviour
+
   ;; TODO Comportement Utilisateur
   userBehaviour
 
   ;; TODO Comportement Capteurs
+  sensorBehaviour
 
-  ;; TODO Export des données
+  ;; TODO Ecriture des données
+  writeData
 
   ;;1 tick = 1 seconde
   incrementOneSecond
@@ -1970,8 +2200,8 @@ GRAPHICS-WINDOW
 17
 0
 10
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -2172,7 +2402,7 @@ maxTemperatureSpring
 maxTemperatureSpring
 minTemperatureSpring
 50
-30.0
+23.0
 1
 1
 °C
@@ -2187,7 +2417,7 @@ minTemperatureSpring
 minTemperatureSpring
 -50
 maxTemperatureSpring
-9.0
+11.0
 1
 1
 °C
@@ -2242,7 +2472,7 @@ minTemperatureFall
 minTemperatureFall
 -50
 maxTemperatureFall
-1.0
+6.0
 1
 1
 °C
@@ -2257,7 +2487,7 @@ maxTemperatureFall
 maxTemperatureFall
 minTemperatureFall
 50
-21.0
+18.0
 1
 1
 °C
@@ -2501,7 +2731,7 @@ maxTemperatureHour
 maxTemperatureHour
 minTemperatureHour
 23
-21.0
+16.0
 1
 1
 h
