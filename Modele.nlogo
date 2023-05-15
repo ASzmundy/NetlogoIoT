@@ -483,18 +483,18 @@ to setup
     set isNight true
   ]
   ;;;;; Si après lever soleil ou avant coucher soleil alors jour
-  if (time:is-after? currentDateTime (time:plus datetimeSunrise 45 "minutes") or time:is-before? currentDateTime (time:plus datetimeSunset -45 "minutes")) [
+  if (time:is-after? currentDateTime (time:plus (time:plus datetimeSunrise 1 "days") 45 "minutes") or time:is-before? currentDateTime (time:plus datetimeSunset -45 "minutes")) [
     set luminosityOutside outsideMaxLuminosity
     set isNight false
   ]
   ;;;;; Si aube
   if (time:is-before? currentDateTime datetimeSunrise and time:is-after? currentDateTime (time:plus datetimeSunrise -45 "minutes")) [
-    set luminosityOutside (time:difference-between currentDateTime datetimeSunrise "seconds") * (outsideMaxLuminosity / 2700)
+    set luminosityOutside (time:difference-between datetimeSunrise currentDateTime "seconds") * (outsideMaxLuminosity / 2700)
     set isNight true
   ]
   ;;;;; Si crépuscule
   if (time:is-after? currentDateTime datetimeSunset and time:is-before? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
-    set luminosityOutside outsideMaxLuminosity - (time:difference-between currentDateTime datetimeSunrise "seconds") * (outsideMaxLuminosity / 2700)
+    set luminosityOutside outsideMaxLuminosity - (time:difference-between datetimeSunset currentDateTime "seconds") * (outsideMaxLuminosity / 2700)
     set isNight false
   ]
 
@@ -916,6 +916,7 @@ to setup
     (pxcor = 1 and pycor = 2)
     or (pxcor = 12 and pycor = 1)
     or (pxcor = 4 and pycor = 7)
+    or (pxcor = 10 and pycor = 9)
   ][
     sprout-heaters 1[
       set shape "container"
