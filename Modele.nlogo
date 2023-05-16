@@ -883,7 +883,7 @@ to setup
     [
       set shape "circle 2"
       set color grey
-      set isRoombaOnStation true
+      set isRoombaOnStation false
       set isActive false
     ]
   ]
@@ -891,7 +891,7 @@ to setup
   ask patches with [pxcor = 11 and pycor = 1] [
     sprout-roombas 1
     [
-      set shape "circle"
+      set shape "roomba"
       set color grey
       set size 0.7
       set bagCapacity 0
@@ -899,7 +899,7 @@ to setup
       set battery 100
       set isActive true
       set isEnRoute false
-      set targetPatch patch-at 0 0
+      set targetPatch patch 0 0
       set current-path []
     ]
   ]
@@ -1972,15 +1972,6 @@ to-report findPath [source-patch destination-patch]
   report search-path
 end
 
-
-;; make the turtle traverse (move through) the path all the way to the destination patch
-to moveToPatch
-  while [length current-path != 0]
-  [
-    go-to-next-patch-in-current-path
-  ]
-end
-
 to go-to-next-patch-in-current-path
   face first current-path
   move-to first current-path
@@ -2014,13 +2005,25 @@ to roombaBehaviour
         ]
       ]
     ][
-      ;;; Si libre
-      ifelse battery > 15 [
-        ;;;; Mouvement aléatoire TODO Remplacer par mouvement rectiligne
-        move-to one-of neighbors with [pcolor != 0 and pcolor != 105 and pcolor != 23.3]
+      ;;; Si pas sur la station
+      ifelse battery > lowBattery [
+        let patchAhead patch-ahead 1
+        let isPatchAheadWalkable false
+        ask patchAhead [
+          if pcolor != 0 and pcolor != 105 and pcolor != 23.3[
+            set isPatchAheadWalkable true
+          ]
+        ]
+        ;;;; Si le patch peut être atteint (pas un mur/meuble)
+        ifelse isPatchAheadWalkable[
+          move-to patchAhead
+        ][
+          ;;;;; Tourne à droite entre 15 et 160° si mur/meuble
+          right (random 145) + 15
+        ]
+        ;;;; Le capteur bouge avec le roomba
         let x xcor
         let y ycor
-        ;;;; Le capteur bouge avec le roomba
         ask my-sensorLinks[
           ask other-end[
             move-to patch x y
@@ -2029,7 +2032,7 @@ to roombaBehaviour
       ][
         ;;;; Si batterie faible, va vers la station cible
         ifelse isEnRoute[
-          moveToPatch
+          go-to-next-patch-in-current-path
           let x xcor
           let y ycor
           ;;;; Le capteur bouge avec le roomba
@@ -2041,7 +2044,7 @@ to roombaBehaviour
           ;;;; Si sur le patch monte sur la station
           if patch-here = targetPatch[
             set isEnRoute false
-            set targetPatch patch-at 0 0
+            set targetPatch patch 0 0
             set isActive false
             ask roombaStations-here[
               set isRoombaOnStation true
@@ -2050,7 +2053,7 @@ to roombaBehaviour
           ]
         ][
           ;;;; Recherche de la station roomba proche
-          let targetPatchTmp patch-at 0 0
+          let targetPatchTmp patch 0 0
           let isFound false
           ask roombaStations with [isRoombaOnStation = false][
             set targetPatchTmp patch-here
@@ -2200,8 +2203,8 @@ GRAPHICS-WINDOW
 17
 0
 10
-1
-1
+0
+0
 1
 ticks
 30.0
@@ -2989,6 +2992,31 @@ dirtKitchen
 1
 11
 
+TEXTBOX
+642
+81
+792
+99
+Roomba
+11
+0.0
+1
+
+SLIDER
+611
+118
+783
+151
+lowBattery
+lowBattery
+1
+99
+10.0
+1
+1
+%
+HORIZONTAL
+
 @#$#@#$#@
 ## WHAT IS IT?
 
@@ -3377,6 +3405,12 @@ Polygon -7500403 true true 165 180 165 210 225 180 255 120 210 135
 Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
+
+roomba
+true
+0
+Circle -7500403 true true 0 0 300
+Circle -16777216 true false 120 15 60
 
 sheep
 false
