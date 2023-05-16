@@ -13,7 +13,6 @@ patches-own
 
 ; VARIABLES GLOBALES
 globals[
-
   ;;; Date et heure
   currentDateTime
   day
@@ -253,6 +252,7 @@ users-own[
 
 
 ; DECLARATION LINKS
+;TODO FAIRE CAPTEUR GENERIQUE QUI EXPORTE UN ENSEMBLE DE DONNES DANS UNE LISTE
 ;; Links capteurs
 directed-link-breed [sensorLinks sensorLink]
 sensorLinks-own [
@@ -273,7 +273,8 @@ directed-link-breed [taskLinks taskLink]
 taskLinks-own[
   priority
 ]
-; TODO FONCTIONS POUR SETUP
+
+; FONCTIONS POUR SETUP
 ;; Lecture fichier éphéméride
 to readEphemeride [monthToRead dayToRead]
   file-open "config/ephemeride.csv"
@@ -373,17 +374,12 @@ to readEphemeride [monthToRead dayToRead]
   set datetimeSunset time:create (word year "-" month "-" day " " sunsetHour)
 end
 
-; FONCTION SETUP
-to setup
-  clear-all
-  reset-ticks
-
-  ;; Initialisation variables globales
-  ;;; Calcul date
-  ;;;; Récupération date
+;; FONCTION CALCUL DATE ACTUELLE ET SAISON
+to setupDate
+  ;;; Récupération date
   let datetimeString date-and-time
-  ;;;; Conversion mois
-  ;;;; TODO Modifier en fonction du mois récupéré de datetimeString
+  ;;; Conversion mois
+  ;;; TODO Modifier en fonction du mois récupéré de datetimeString
   if substring datetimeString 19 22 = "jan"[
     set month "01"
   ]
@@ -421,15 +417,15 @@ to setup
     set month "12"
   ]
 
-  ;;;; Création datetime de l'extension date à partir de datetimeString
+  ;;; Création datetime de l'extension date à partir de datetimeString
   let datetimeString2 (word (substring datetimeString 23 27) "-" month "-" (substring datetimeString 16 18) " " (substring datetimeString 0 2) ":" (substring datetimeString 3 5) ":" (substring datetimeString 6 8))
   let tmpDatetime time:create datetimeString2
 
-  ;;;; Affectation variables globales
+  ;;; Affectation variables globales
   set year time:get "year" tmpDatetime
   set day time:get "day" tmpDatetime
   set month time:get "month" tmpDatetime
-  ;;;;; Conversion 12h vers 24
+  ;;;; Conversion 12h vers 24
   if substring datetimeString 13 15 = "PM" and (substring datetimeString 0 2 != "12") [
     set tmpDatetime time:plus tmpDatetime 12 "hours"
   ]
@@ -451,9 +447,10 @@ to setup
   if (month = 9 and day >= 21) or month = 10 or month = 11 or (month = 12 and day < 20)[
     set season "Automne"
   ]
+end
 
-
-  ;;; Calcul Température au lancement
+;; TEMPERATURE
+to setupTemperature
   ;;;; Choix de la température de la journée en fonction de la saison
   ;;;; TODO Améliorer le choix de la température de la journée pour la faire varier un peu plus
   if season = "Hiver" [
@@ -512,42 +509,39 @@ to setup
   set temperaturePrincipalRooms temperatureOutside
   set temperatureEntrance temperatureOutside
   set temperatureBathroom temperatureOutside
+end
 
-
-  ;;; Gestion de la luminosité
-  ;;;; Lecture fichier Ephéméride
+;; Luminosité
+;;TODO GESTION HEURE ETE/HIVER
+to setupLightOutside
+  ;;; Lecture fichier Ephéméride
   readEphemeride month day
 
-  ;;;;TODO GESTION HEURE ETE/HIVER
-
-  ;;;; Initialisation variable Luminosité extérieur
-  ;;;;; Si avant lever soleil ou après coucher soleil alors nuit noire
+  ;;; Initialisation variable Luminosité extérieur
+  ;;;; Si avant lever soleil ou après coucher soleil alors nuit noire
   if (time:is-before? currentDateTime (time:plus datetimeSunrise -45 "minutes") or time:is-after? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
     set luminosityOutside 0
     set isNight true
   ]
-  ;;;;; Si après lever soleil ou avant coucher soleil alors jour
+  ;;;; Si après lever soleil ou avant coucher soleil alors jour
   if (time:is-after? currentDateTime (time:plus (time:plus datetimeSunrise 1 "days") 45 "minutes") or time:is-before? currentDateTime (time:plus datetimeSunset -45 "minutes")) [
     set luminosityOutside outsideMaxLuminosity
     set isNight false
   ]
-  ;;;;; Si aube
+  ;;;; Si aube
   if (time:is-before? currentDateTime datetimeSunrise and time:is-after? currentDateTime (time:plus datetimeSunrise -45 "minutes")) [
     set luminosityOutside (time:difference-between datetimeSunrise currentDateTime "seconds") * (outsideMaxLuminosity / 2700)
     set isNight true
   ]
-  ;;;;; Si crépuscule
+  ;;;; Si crépuscule
   if (time:is-after? currentDateTime datetimeSunset and time:is-before? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
     set luminosityOutside outsideMaxLuminosity - (time:difference-between datetimeSunset currentDateTime "seconds") * (outsideMaxLuminosity / 2700)
     set isNight false
   ]
+end
 
-
-
-  ;; Chargement des couleurs de patchs
-  import-pcolors "appart_petit.png"
-
-  ;; Création des meubles (manuel)
+;; Meubles
+to setupFurniture
   ;;; Tables
   ;;;; Tables salon
   ask patches with [ pxcor > 5 and pxcor < 10 and pycor = 1] [
@@ -629,7 +623,7 @@ to setup
       set debit 0
       set isActive false
     ]
-    ;;; Gestion temperature
+    ;;;; Gestion temperature eau
     if any?(neighbors with [pcolor = 84.9])[
       ask showers-here[
         set waterTemperature temperatureBathroom
@@ -999,7 +993,7 @@ to setup
       set ambiantTemperature 0
       set isActive false
     ]
-    ;;;Gestion temperature
+    ;;;; Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
       ask ACs-here[
         set ambiantTemperature temperatureBathroom
@@ -1017,7 +1011,7 @@ to setup
     ]
   ]
 
-  ;; Création des alarmes
+  ;;; Création des alarmes
   ask patches with
   [
     pxcor = 12 and pycor = 4
@@ -1030,7 +1024,7 @@ to setup
     ]
   ]
 
-  ;; Création des fenêtres et volets
+  ;;; Création des fenêtres et volets
   ask patches with [pcolor = 105] [
     sprout-windows 1
     [
@@ -1045,8 +1039,10 @@ to setup
       set isOpen true
     ]
   ]
+end
 
-  ;; Création des objets
+;; Objets
+to setupObjects
   ;;; Extincteur
   ask patches with [ pxcor = 1 and pycor = 4] [
     sprout-extinguishers 1
@@ -1057,7 +1053,9 @@ to setup
       set powderQuantity 100
     ]
   ]
+end
 
+to setupSensors
   ;; Création des capteurs génériques
   ;;; Capteur CO
   ask patches with [
@@ -1181,16 +1179,20 @@ to setup
       ]
     ]
   ]
+end
 
-  ;; Création de l'utilisateur à la porte d'entrée
+;; Utilisateur TODO
+to setupUser
   ask patches with [pxcor = 0 and pycor = 3][
     sprout-users 1 [
       set shape "person"
       set color white
     ]
   ]
+end
 
-  ;; Initialisation variable Luminosité intérieur
+;; Luminosité intérieure
+to setupLightInside
   ;;; Check variable debug lights TODO RETIRER CA
   ask lights with [pcolor = 64.7][
     set isActive entranceLampOn
@@ -1334,7 +1336,10 @@ to setup
       set luminosityBathroom luminosity
     ]
   ]
+end
 
+;; Chauffage Clim
+to setupThermostat
   ;;; Allumage chauffage Debug TODO Retirer
   ask heaters with [isActive != entranceHeater and pcolor = 64.7][
     set isActive entranceHeater
@@ -1370,6 +1375,43 @@ to setup
       set color white
     ]
   ]
+end
+
+; FONCTION SETUP
+to setup
+  clear-all
+  reset-ticks
+
+  ;; Initialisation variables globales
+  ;;; Date et saison actuelle
+  setupDate
+
+  ;;; Température
+  setupTemperature
+
+  ;;; Gestion de la luminosité extérieure
+  setupLightOutside
+
+  ;; Chargement des couleurs de patchs
+  import-pcolors "appart_petit.png"
+
+  ;; Création des meubles (manuel)
+  setupFurniture
+
+  ;; Création des objets
+  setupObjects
+
+  ;; Création des capteurs
+  setupSensors
+
+  ;; Création de l'utilisateur à la porte d'entrée
+  setupUser
+
+  ;; Initialisation variable Luminosité intérieur
+  setupLightInside
+
+  ;; Initialisation chauffage/clim
+  setupThermostat
 
 end
 ; FIN SETUP
@@ -1884,40 +1926,40 @@ to dirtManagement
     set dirtEntrance dirtEntrance + (100 / 604800)
   ]
   if dirtEntrance > 100 [
-   set dirtEntrance 100
+    set dirtEntrance 100
   ]
   ;;; Chambre
   if dirtBedroom < 100 [
     set dirtBedroom dirtBedroom + (100 / 604800)
   ]
   if dirtBedroom > 100 [
-   set dirtBedroom 100
+    set dirtBedroom 100
   ]
   ;;; Salle à manger
   if dirtDiningroom < 100 [
     set dirtDiningRoom dirtDiningRoom + (100 / 604800)
   ]
   if dirtDiningRoom > 100 [
-   set dirtDiningRoom 100
+    set dirtDiningRoom 100
   ]
   ;;; Cuisine
   if dirtKitchen < 100 [
     set dirtKitchen dirtKitchen + (100 / 604800)
   ]
   if dirtKitchen > 100 [
-   set dirtKitchen 100
+    set dirtKitchen 100
   ]
   ;;; Salle de bain
   if dirtBathroom < 100 [
     set dirtBathroom dirtBathroom + (100 / 604800)
   ]
   if dirtBathroom > 100 [
-   set dirtBathroom 100
+    set dirtBathroom 100
   ]
 end
 
 
-; Pathfinding TODO
+; Pathfinding
 ;; Recherche de chemin via A*
 to-report findPath [source-patch destination-patch]
 
@@ -2003,7 +2045,7 @@ to-report findPath [source-patch destination-patch]
   report search-path
 end
 
-to go-to-next-patch-in-current-path
+to goToNextPathInCurrentPath
   face first current-path
   move-to first current-path
   set current-path remove-item 0 current-path
@@ -2018,117 +2060,117 @@ end
 ; Comportement roomba
 to roombaBehaviour
   ask roombas with[isActive][
-      ;;; Si pas sur la station
-      ifelse battery > lowBattery [
-        let patchAhead patch-ahead 1
-        let isPatchAheadWalkable false
-        ask patchAhead [
-          if pcolor != 0 and pcolor != 105 and pcolor != 23.3[
-            set isPatchAheadWalkable true
-          ]
+    ;;; Si pas sur la station
+    ifelse battery > lowBattery [
+      let patchAhead patch-ahead 1
+      let isPatchAheadWalkable false
+      ask patchAhead [
+        if pcolor != 0 and pcolor != 105 and pcolor != 23.3[
+          set isPatchAheadWalkable true
         ]
-        ;;;; Si le patch peut être atteint (pas un mur/meuble)
-        ifelse isPatchAheadWalkable[
-          move-to patchAhead
-        ][
-          ;;;;; Tourne à droite entre 15 et 160° si mur/meuble
-          right (random 145) + 15
+      ]
+      ;;;; Si le patch peut être atteint (pas un mur/meuble)
+      ifelse isPatchAheadWalkable[
+        move-to patchAhead
+      ][
+        ;;;;; Tourne à droite entre 15 et 160° si mur/meuble
+        right (random 145) + 15
+      ]
+      ;;;; Le capteur bouge avec le roomba
+      let x xcor
+      let y ycor
+      ask my-sensorLinks[
+        ask other-end[
+          move-to patch x y
         ]
-        ;;;; Le capteur bouge avec le roomba
+      ]
+    ][
+      ;;;; Si batterie faible, va vers la station cible
+      ifelse isEnRoute[
+        goToNextPathInCurrentPath
         let x xcor
         let y ycor
+        ;;;; Le capteur bouge avec le roomba
         ask my-sensorLinks[
           ask other-end[
             move-to patch x y
           ]
         ]
+        ;;;; Si sur le patch monte sur la station
+        if patch-here = targetPatch[
+          set isEnRoute false
+          set targetPatch patch 0 0
+          set isActive false
+          ask roombaStations-here[
+            set isRoombaOnStation true
+            set isActive true
+          ]
+        ]
       ][
-        ;;;; Si batterie faible, va vers la station cible
-        ifelse isEnRoute[
-          go-to-next-patch-in-current-path
-          let x xcor
-          let y ycor
-          ;;;; Le capteur bouge avec le roomba
-          ask my-sensorLinks[
-            ask other-end[
-              move-to patch x y
-            ]
-          ]
-          ;;;; Si sur le patch monte sur la station
-          if patch-here = targetPatch[
-            set isEnRoute false
-            set targetPatch patch 0 0
-            set isActive false
-            ask roombaStations-here[
-              set isRoombaOnStation true
-              set isActive true
-            ]
-          ]
-        ][
-          ;;;; Recherche de la station roomba proche
-          let targetPatchTmp patch 0 0
-          let isFound false
-          ask roombaStations with [isRoombaOnStation = false][
-            set targetPatchTmp patch-here
-            set isFound true
-          ]
-          ;;;; Si station libre, cherche un chemin
-          if isFound[
-            set targetPatch targetPatchTmp
-            set isFound false
-          ]
-          find-shortest-path-to-destination
-          set isEnRoute true
+        ;;;; Recherche de la station roomba proche
+        let targetPatchTmp patch 0 0
+        let isFound false
+        ask roombaStations with [isRoombaOnStation = false][
+          set targetPatchTmp patch-here
+          set isFound true
         ]
-      ]
-
-      ;;;; Détection saleté et nettoyage de la pièce
-      ;;;;; Entrée
-      if [pcolor] of patch-here = 64.7[
-        set dirtLevel dirtEntrance
-        set dirtEntrance dirtEntrance - ( 100 / 60 )
-        if dirtEntrance < 0[
-         set dirtEntrance 0
+        ;;;; Si station libre, cherche un chemin
+        if isFound[
+          set targetPatch targetPatchTmp
+          set isFound false
         ]
-      ]
-      ;;;;; Pièces principales
-      if [pcolor] of patch-here = 126.3[
-        set dirtLevel dirtBedroom
-        set dirtBedroom dirtBedroom - ( 100 / 60 )
-        if dirtBedroom < 0[
-         set dirtBedroom 0
-        ]
-      ]
-      if [pcolor] of patch-here = 44.4[
-        set dirtLevel dirtKitchen
-        set dirtKitchen dirtKitchen - ( 100 / 60 )
-        if dirtKitchen < 0[
-         set dirtKitchen 0
-        ]
-      ]
-      if [pcolor] of patch-here = 14.4[
-        set dirtLevel dirtDiningRoom
-        set dirtDiningRoom dirtDiningRoom - ( 100 / 60 )
-        if dirtDiningRoom < 0[
-         set dirtDiningRoom 0
-        ]
-      ]
-      ;;;;; Salle de bain
-      if [pcolor] of patch-here = 84.9[
-        set dirtLevel dirtBathroom
-        set dirtBathroom dirtBathroom - ( 100 / 60 )
-        if dirtBathroom < 0[
-         set dirtBathroom 0
-        ]
-      ]
-
-      ;;;; Déchargement de la batterie
-      ;;;; On assume que le roomba a une autonomie de 75 minutes (iRobot Roomba i7)
-      set battery battery - (100 / 4500)
-      if battery < 0[
-        set battery 0
+        find-shortest-path-to-destination
+        set isEnRoute true
       ]
     ]
+
+    ;;;; Détection saleté et nettoyage de la pièce
+    ;;;;; Entrée
+    if [pcolor] of patch-here = 64.7[
+      set dirtLevel dirtEntrance
+      set dirtEntrance dirtEntrance - ( 100 / 60 )
+      if dirtEntrance < 0[
+        set dirtEntrance 0
+      ]
+    ]
+    ;;;;; Pièces principales
+    if [pcolor] of patch-here = 126.3[
+      set dirtLevel dirtBedroom
+      set dirtBedroom dirtBedroom - ( 100 / 60 )
+      if dirtBedroom < 0[
+        set dirtBedroom 0
+      ]
+    ]
+    if [pcolor] of patch-here = 44.4[
+      set dirtLevel dirtKitchen
+      set dirtKitchen dirtKitchen - ( 100 / 60 )
+      if dirtKitchen < 0[
+        set dirtKitchen 0
+      ]
+    ]
+    if [pcolor] of patch-here = 14.4[
+      set dirtLevel dirtDiningRoom
+      set dirtDiningRoom dirtDiningRoom - ( 100 / 60 )
+      if dirtDiningRoom < 0[
+        set dirtDiningRoom 0
+      ]
+    ]
+    ;;;;; Salle de bain
+    if [pcolor] of patch-here = 84.9[
+      set dirtLevel dirtBathroom
+      set dirtBathroom dirtBathroom - ( 100 / 60 )
+      if dirtBathroom < 0[
+        set dirtBathroom 0
+      ]
+    ]
+
+    ;;;; Déchargement de la batterie
+    ;;;; On assume que le roomba a une autonomie de 75 minutes (iRobot Roomba i7)
+    set battery battery - (100 / 4500)
+    if battery < 0[
+      set battery 0
+    ]
+  ]
 end
 
 ; Comportement station Roomba
