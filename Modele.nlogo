@@ -215,10 +215,41 @@ breed [ACSensors ACSensor]
 ;; Utilisateur
 breed [users user]
 users-own[
+  ;;; Pour pathfinding
+  current-path
+  path
+  isEnRoute
+  targetPatch
 
+  ;;; Tâches
+  tasks
+
+  ;;; Besoins
+  hunger
+  sleep
+  comfort
+  health
+  cleanliness
+
+  ;;; Anniversaire
+  age
+  birthDay
+  birthMonth
+
+  ;;; Température interne
+  temperature
+
+  ;;; Alerte
+  isAlert
+
+  ;;; Mouvement
+  isRunning
+  moveSpeed
+  runSpeed
+
+  ;;; Poids
+  weight
 ]
-
-
 
 
 ; DECLARATION LINKS
@@ -1986,25 +2017,7 @@ end
 
 ; Comportement roomba
 to roombaBehaviour
-  ask roombas[
-    ;;; Si sur station
-    ifelse isActive = false and any?(roombaStations-here with [isRoombaOnStation and isActive])[
-      ;;;; Déconnexion station si chargé
-      ifelse battery = 100[
-        ask roombaStations-here[
-          set isRoombaOnStation false
-          set isActive false
-        ]
-        set isActive true
-      ][
-        ;;;; Chargement
-        ;;;; On assume que le roomba met 90 minutes à charger (iRobot roomba i7)
-        set battery battery + ( 100 / 5400 )
-        if battery > 100 [
-          set battery 100
-        ]
-      ]
-    ][
+  ask roombas with[isActive][
       ;;; Si pas sur la station
       ifelse battery > lowBattery [
         let patchAhead patch-ahead 1
@@ -2116,17 +2129,37 @@ to roombaBehaviour
         set battery 0
       ]
     ]
-  ]
 end
 
 ; Comportement station Roomba
 to roombaStationBehaviour
-
+  ask roombaStations with [isActive][
+    ;;; Si sur station
+    ask roombas-here[
+      ;;;; Déconnexion station si chargé
+      ifelse battery = 100[
+        ask roombaStations-here[
+          set isRoombaOnStation false
+          set isActive false
+        ]
+        set isActive true
+      ][
+        ;;;; Chargement
+        ;;;; On assume que le roomba met 90 minutes à charger (iRobot roomba i7)
+        set battery battery + ( 100 / 5400 )
+        if battery > 100 [
+          set battery 100
+        ]
+      ]
+    ]
+  ]
 end
 
 ; Comportement Utilisateur
 to userBehaviour
+  ask Users[
 
+  ]
 end
 
 ; Comportement Capteurs
@@ -2164,7 +2197,7 @@ to go
   ;; Appel comportement Roomba
   roombaBehaviour
 
-  ;; TODO Appel comportement Roomba
+  ;; Appel comportement station Roomba
   roombaStationBehaviour
 
   ;; TODO Comportement Utilisateur
