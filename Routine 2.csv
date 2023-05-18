@@ -1,0 +1,9 @@
+monday,,tuesday,,wednesday,,thursday,,friday,,saturday,,sunday,
+time,action,time,action,time,action,time,action,time,action,time,action,time,action
+06:00,wake up,06:00,wake up,06:00,wake up,06:00,wake up,06:00,wake up,00:30,sleep,00:30,sleep
+07:00,breakfast,07:00,breakfast,07:00,breakfast,07:00,breakfast,07:00,breakfast,09:30,wake up,09:30,wake up
+12:00,lunch,12:00,lunch,12:00,lunch,12:00,lunch,12:00,lunch,07:00,breakfast,11:30,go outside
+19:30,diner,19:30,diner,19:30,diner,19:30,diner,19:30,diner,12:00,lunch,16:00,go back home
+21:00,shower,21:00,shower,21:00,shower,21:00,shower,21:00,shower,19:30,diner,19:30,diner
+22:00,sleep,22:00,sleep,22:00,sleep,22:00,sleep,,,21:00,shower,21:00,shower
+,,,,,,,,,,,,22:00,sleep

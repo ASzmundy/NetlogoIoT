@@ -15,6 +15,7 @@ patches-own
 globals[
   ;;; Date et heure
   currentDateTime
+  weekday ;;;; Jour de la semaine (1 = Lundi, 7 = Dimanche)
   day
   month
   year
@@ -22,6 +23,11 @@ globals[
   minute
   second
   season
+
+  ;;; Routine
+  routineTimes
+  routineActions
+  nextRoutineIndex
 
   ;;; Gestion particules
   smokePrincipalRooms
@@ -378,12 +384,67 @@ to readEphemeride [monthToRead dayToRead]
   set datetimeSunset time:create (word year "-" month "-" day " " sunsetHour)
 end
 
-;; FONCTION CALCUL DATE ACTUELLE ET SAISON
+;; Lecture fichier routine
+to readRoutine [inputWeekDay]
+  file-open "config/routine.csv"
+  set routineTimes []
+  set routineActions []
+  while [not file-at-end?][
+    let line (csv:from-row file-read-line ",")
+
+    ;;; Si pas ligne d'entête, alimenter listes de routine en fonction du jour
+    if (item 0 line != "monday") and (item 0 line != "time")[
+      ;;;; Lundi
+      if inputWeekDay = 1 and length line >= 2[
+        set routineTimes insert-item 0 routineTimes (item 0 line)
+        set routineActions insert-item 0 routineActions (item 1 line)
+      ]
+      ;;;; Mardi
+      if inputWeekDay = 2 and length line >= 4[
+        set routineTimes insert-item 0 routineTimes (item 2 line)
+        set routineActions insert-item 0 routineActions (item 3 line)
+      ]
+      ;;;; Mercredi
+      if inputWeekDay = 3 and length line >= 6[
+        set routineTimes insert-item 0 routineTimes (item 4 line)
+        set routineActions insert-item 0 routineActions (item 5 line)
+      ]
+      ;;;; Jeudi
+      if inputWeekDay = 4 and length line >= 8[
+        set routineTimes insert-item 0 routineTimes (item 6 line)
+        set routineActions insert-item 0 routineActions (item 7 line)
+      ]
+      ;;;; Vendredi
+      if inputWeekDay = 5 and length line >= 10[
+        set routineTimes insert-item 0 routineTimes (item 8 line)
+        set routineActions insert-item 0 routineActions (item 9 line)
+      ]
+      ;;;; Samedi
+      if inputWeekDay = 6 and length line >= 12[
+        set routineTimes insert-item 0 routineTimes (item 10 line)
+        set routineActions insert-item 0 routineActions (item 11 line)
+      ]
+      ;;;; Dimanche
+      if inputWeekDay = 7 and length line >= 14[
+        set routineTimes insert-item 0 routineTimes (item 12 line)
+        set routineActions insert-item 0 routineActions (item 13 line)
+      ]
+    ]
+  ]
+  file-close
+  ;;; Nettoyage listes routine (retrait de "")
+  set routineTimes filter [ x -> x != "" ] routineTimes
+  set routineActions filter [ x -> x != "" ] routineActions
+  set nextRoutineIndex length routineTimes - 1
+end
+
+;; Fonction de calcul date actuelle et saison
 to setupDate
+
   ;;; Récupération date
   let datetimeString date-and-time
   ;;; Conversion mois
-  ;;; TODO Modifier en fonction du mois récupéré de datetimeString
+  ;;; TODO Modifier en fonction du mois récupéré de datetimeString ( anglais par exemple )
   if substring datetimeString 19 22 = "jan"[
     set month "01"
   ]
@@ -427,8 +488,9 @@ to setupDate
 
   ;;; Affectation variables globales
   set year time:get "year" tmpDatetime
-  set day time:get "day" tmpDatetime
   set month time:get "month" tmpDatetime
+  set day time:get "day" tmpDatetime
+  set weekday time:get "dayofweek" tmpDatetime
   ;;;; Conversion 12h vers 24
   if substring datetimeString 13 15 = "PM" and (substring datetimeString 0 2 != "12") [
     set tmpDatetime time:plus tmpDatetime 12 "hours"
@@ -440,36 +502,60 @@ to setupDate
 
   ;;; Calcul Saison
   if (month = 12 and day >= 21) or month = 1 or month = 2 or (month = 3 and day < 20)[
-    set season "Hiver"
+    set season "Winter"
   ]
   if (month = 3 and day >= 21) or month = 4 or month = 5 or (month = 6 and day < 20)[
-    set season "Printemps"
+    set season "Spring"
   ]
   if (month = 6 and day >= 21) or month = 7 or month = 8 or (month = 9 and day < 20)[
-    set season "Ete"
+    set season "Summer"
   ]
   if (month = 9 and day >= 21) or month = 10 or month = 11 or (month = 12 and day < 20)[
-    set season "Automne"
+    set season "Fall"
   ]
 end
 
-;; TEMPERATURE
+;; Fonction de calcul de la routine de l'utilisateur
+to setupRoutine [inputWeekDay inputHour inputMinutes]
+  ;;; Lecture fichier routine
+  readRoutine inputWeekDay
+
+  ;;; Récupération de la prochaine action de routine
+  let i 0
+  let isFinished false
+  while[i < length routineTimes and not isFinished][;6
+    let nextroutineTimeString item (i + 1) routineTimes
+    let nextRoutineTimeHour read-from-string(substring nextroutineTimeString 0 2)
+    let nextRoutineTimeMinute read-from-string (substring nextroutineTimeString 3 5)
+
+    ;;; Si le routinetime d'après est déjà passé
+    ifelse nextRoutineTimeHour < inputHour or (nextRoutineTimeHour = inputHour and nextRoutineTimeMinute < inputMinutes)[
+      set isFinished true
+    ][
+      set i i + 1
+    ]
+  ]
+
+  set nextRoutineIndex i
+end
+
+;; Temperature
 to setupTemperature
   ;;;; Choix de la température de la journée en fonction de la saison
   ;;;; TODO Améliorer le choix de la température de la journée pour la faire varier un peu plus
-  if season = "Hiver" [
+  if season = "Winter" [
     set targetTemperatureOutsideMin minTemperatureWinter + (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
     set targetTemperatureOutsideMax maxTemperatureWinter - (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
   ]
-  if season = "Printemps" [
+  if season = "Spring" [
     set targetTemperatureOutsideMin minTemperatureSpring + (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
     set targetTemperatureOutsideMax maxTemperatureSpring - (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
   ]
-  if season = "Ete" [
+  if season = "Summer" [
     set targetTemperatureOutsideMin minTemperatureSummer + (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
     set targetTemperatureOutsideMax maxTemperatureSummer - (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
   ]
-  if season = "Automne" [
+  if season = "Fall" [
     set targetTemperatureOutsideMin minTemperatureFall + (random ((maxTemperatureFall - minTemperatureFall) / 2))
     set targetTemperatureOutsideMax maxTemperatureFall - (random ((maxTemperatureFall - minTemperatureFall) / 2))
   ]
@@ -1315,6 +1401,9 @@ to setup
   ;;; Date et saison actuelle
   setupDate
 
+  ;;; Routine
+  setupRoutine weekDay hour minute
+
   ;;; Température
   setupTemperature
 
@@ -1348,8 +1437,9 @@ end
 to incrementOneSecond
   set currentDateTime time:plus currentDateTime 1 "second"
   set year time:get "year" currentDateTime
-  set day time:get "day" currentDateTime
   set month time:get "month" currentDateTime
+  set day time:get "day" currentDateTime
+  set weekday time:get "dayofweek" currentDateTime
 
   set hour time:get "hour" currentDateTime
   set minute time:get "minute" currentDateTime
@@ -1358,21 +1448,24 @@ end
 
 ;; Passage jour suivant
 to newDay
+  ;;; Définition routine du jour
+  readRoutine weekday
+
   ;;; Définition éphéméride du jour
   readEphemeride month day
 
   ;;; Définition saison en fonction de la date
-  if ((month = 12 and day >= 21) or month = 1 or month = 2 or (month = 3 and day < 20)) and season != "Hiver"[
-    set season "Hiver"
+  if ((month = 12 and day >= 21) or month = 1 or month = 2 or (month = 3 and day < 20)) and season != "Winter"[
+    set season "Winter"
   ]
-  if ((month = 3 and day >= 21) or month = 4 or month = 5 or (month = 6 and day < 20)) and season != "Printemps"[
-    set season "Printemps"
+  if ((month = 3 and day >= 21) or month = 4 or month = 5 or (month = 6 and day < 20)) and season != "Spring"[
+    set season "Spring"
   ]
-  if ((month = 6 and day >= 21) or month = 7 or month = 8 or (month = 9 and day < 20)) and season != "Ete"[
-    set season "Ete"
+  if ((month = 6 and day >= 21) or month = 7 or month = 8 or (month = 9 and day < 20)) and season != "Summer"[
+    set season "Summer"
   ]
-  if ((month = 9 and day >= 21) or month = 10 or month = 11 or (month = 12 and day < 20)) and season != "Automne"[
-    set season "Automne"
+  if ((month = 9 and day >= 21) or month = 10 or month = 11 or (month = 12 and day < 20)) and season != "Fall"[
+    set season "Fall"
   ]
 end
 
@@ -1514,16 +1607,16 @@ to temperatureOutsideManagement
   if time:is-equal? currentDateTime dateTimeTemperatureMax[
     set temperatureOutside targetTemperatureOutsideMax
     set dateTimeTemperatureMin time:plus dateTimeTemperatureMin 1 "day"
-    if season = "Hiver" [
+    if season = "Winter" [
       set targetTemperatureOutsideMin minTemperatureWinter + (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
     ]
-    if season = "Printemps" [
+    if season = "Spring" [
       set targetTemperatureOutsideMin minTemperatureSpring + (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
     ]
-    if season = "Ete" [
+    if season = "Summer" [
       set targetTemperatureOutsideMin minTemperatureSummer + (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
     ]
-    if season = "Automne" [
+    if season = "Fall" [
       set targetTemperatureOutsideMin minTemperatureFall + (random ((maxTemperatureFall - minTemperatureFall) / 2))
     ]
     set secondsBetweenExtremums time:difference-between dateTimeTemperatureMax dateTimeTemperatureMin "seconds"
@@ -1532,16 +1625,16 @@ to temperatureOutsideManagement
   if time:is-equal? currentDateTime dateTimeTemperatureMin[
     set temperatureOutside targetTemperatureOutsideMin
     set dateTimeTemperatureMax time:plus dateTimeTemperatureMax 1 "day"
-    if season = "Hiver" [
+    if season = "Winter" [
       set targetTemperatureOutsideMax maxTemperatureWinter - (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
     ]
-    if season = "Printemps" [
+    if season = "Spring" [
       set targetTemperatureOutsideMax maxTemperatureSpring - (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
     ]
-    if season = "Ete" [
+    if season = "Summer" [
       set targetTemperatureOutsideMax maxTemperatureSummer - (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
     ]
-    if season = "Automne" [
+    if season = "Fall" [
       set targetTemperatureOutsideMax maxTemperatureFall - (random ((maxTemperatureFall - minTemperatureFall) / 2))
     ]
     set secondsBetweenExtremums time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
@@ -2053,21 +2146,21 @@ to userBehaviour
               create-taskLink-to tableTmp
               [
                 set action "put"
-                set priority 0
+                set priority 1
               ]
               create-taskLink-to chairTmp[
                 set action "sit"
-                set priority 0.1
+                set priority 1.1
               ]
               create-taskLink-to thingToEat[
                 set action "eat on table"
-                set priority 0.2
+                set priority 1.2
               ]
             ][
               ;;;;; Si fruit, mange sur place
               create-taskLink-to thingToEat[
                 set action "eat"
-                set priority 0
+                set priority 1
               ]
             ]
           ]
@@ -2169,9 +2262,56 @@ to userBehaviour
         ;;;; TODO Implémenter actions ici
       ]
     ]
-    ;; TODO Création des taches
-    ;;; TODO Chargement routine
+    ;; Création des taches
+    ;;; Routine
+    if nextRoutineIndex >= 0[
+      if hour = (read-from-string substring (item nextRoutineIndex RoutineTimes) 0 2) and minute = (read-from-string substring (item nextRoutineIndex RoutineTimes) 3 5)[
+        ;;;; Réveil
+        if item nextRoutineIndex RoutineActions = "wake up"[
+          ask my-taskLinks with [action = "sleep"][
+            die
+          ]
+        ]
 
+        ;;;; Aller au lit
+        if item nextRoutineIndex RoutineActions = "sleep" and not any?(my-taskLinks with [action = "sleep"])[
+          create-taskLink-to one-of beds
+          [
+            set action "sleep"
+            set priority 1
+          ]
+        ]
+
+        ;;;; Petit déjeuner
+        if item nextRoutineIndex RoutineActions = "breakfast" and not any?(my-taskLinks with [action = "get something to eat" or action = "eat" or action = "eat on table"])[
+          create-taskLink-to one-of fridges
+          [
+            set action "get something to eat"
+            set priority 1
+          ]
+        ]
+
+        ;;;; Déjeuner/Diner
+        if (item nextRoutineIndex RoutineActions = "lunch" or item nextRoutineIndex RoutineActions = "diner") and not any?(my-taskLinks with [action = "get something to eat" or action = "eat" or action = "eat on table"])[
+          create-taskLink-to one-of fridges
+          [
+            set action "cook something or eat leftovers" ; TODO Implémenter cette action
+            set priority 1
+          ]
+        ]
+
+        ;;;; Prendre une douche
+        if item nextRoutineIndex RoutineActions = "shower" and not any?(my-taskLinks with [action = "shower"])[
+
+        ]
+
+
+        ;;;; TODO Ajouter prochaines actions routines ici (comme dans fichier)
+
+        ;;;; Récupération prochaine routine
+        set nextRoutineIndex nextRoutineIndex - 1
+      ]
+    ]
     ;;; Besoins dynamiques
     ;;;; Si a faim, va chercher un casse croute
     if hunger < 10 and not any?(my-taskLinks with [action = "get something to eat" or action = "eat" or action = "eat on table"]) [
@@ -2182,7 +2322,7 @@ to userBehaviour
       ]
     ]
 
-    ;;;;
+    ;;;; Si fatigué, va dormir
     if sleep < 10 and not any?(my-taskLinks with [action = "sleep" or action = "go to bed"]) [
       create-taskLink-to one-of beds
       [
@@ -2217,6 +2357,10 @@ to userBehaviour
         set sleep 0
       ]
     ]
+
+
+
+
   ]
 end
 
@@ -3037,6 +3181,27 @@ nutritionMeatMin
 1
 NIL
 HORIZONTAL
+
+MONITOR
+1298
+522
+1362
+567
+NIL
+weekDay
+17
+1
+11
+
+TEXTBOX
+568
+86
+718
+104
+NIL
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
