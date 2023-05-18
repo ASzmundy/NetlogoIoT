@@ -878,7 +878,7 @@ to setupFurniture
           set shape "apple"
           set size 0.5
           set color lime
-          set nutrition 25
+          set nutrition random (nutritionFruitMax - nutritionFruitMin) + nutritionFruitMin
           set freshness 100
           set quantity 100
         ]
@@ -886,14 +886,14 @@ to setupFurniture
           set shape "pumpkin"
           set size 0.5
           set color green
-          set nutrition 25
+          set nutrition random (nutritionVegetableMax - nutritionVegetableMin) + nutritionVegetableMin
           set freshness 100
         ]
         sprout-meats 10[
           set shape "bread"
           set size 0.5
           set color red
-          set nutrition 25
+          set nutrition random (nutritionMeatMax - nutritionMeatMin) + nutritionMeatMin
           set freshness 100
         ]
       ]
@@ -1259,104 +1259,6 @@ end
 
 ;; Luminosité intérieure
 to setupLightInside
-  ;;; Check variable debug lights TODO RETIRER CA
-  ask lights with [pcolor = 64.7][
-    set isActive entranceLampOn
-    ifelse isActive [
-      set shape "triangle"
-    ][
-      set shape "triangle 2"
-    ]
-  ]
-  ask lights with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3][
-    set isActive principalRoomsLampsOn
-    ifelse isActive [
-      set shape "triangle"
-    ][
-      set shape "triangle 2"
-    ]
-  ]
-  ask lights with [pcolor = 84.9][
-    set isActive bathroomLampOn
-    ifelse isActive [
-      set shape "triangle"
-    ][
-      set shape "triangle 2"
-    ]
-  ]
-
-  ;;; Check variable debug volets TODO RETIRER CA
-  ask shutters with [any?(neighbors with[pcolor = 64.7])][
-    set isOpen not entranceShuttersDown
-    ifelse isOpen [
-      set color cyan
-    ][
-      set color gray
-    ]
-  ]
-  ask shutters with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])][
-    set isOpen not principalRoomsShuttersDown
-    ifelse isOpen [
-      set color cyan
-    ][
-      set color gray
-    ]
-  ]
-  ask shutters with [any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])])][
-    set isOpen not principalRoomsShuttersDown
-    ifelse isOpen [
-      set color cyan
-    ][
-      set color gray
-    ]
-  ]
-
-  ;;; Check variable debug fenetres TODO RETIRER CA
-  ask windows with [any?(neighbors with[pcolor = 64.7])][
-    set isOpen entranceWindowsOpen
-    ifelse isOpen [
-      ask shutters-here with [isOpen = true] [
-        set color blue
-      ]
-      set color blue
-    ][
-      ask shutters-here with [isOpen = true] [
-        set color cyan
-      ]
-      set color cyan
-    ]
-  ]
-  ask windows with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])][
-    set isOpen principalRoomsWindowsOpen
-    ifelse isOpen [
-      ask shutters-here with [isOpen = true] [
-        set color blue
-      ]
-      set color blue
-    ][
-      ask shutters-here with [isOpen = true] [
-        set color cyan
-      ]
-      set color cyan
-    ]
-  ]
-  ask windows with [any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])])][
-    set isOpen principalRoomsWindowsOpen
-    ifelse isOpen [
-      ask shutters-here with [isOpen = true] [
-        set color blue
-      ]
-      set color blue
-    ][
-      ask shutters-here with [isOpen = true] [
-        set color cyan
-      ]
-      set color cyan
-    ]
-  ]
-
-
-
   ;;; Si il y a au moins un volet ouvert, luminosité pièce = luminosité extérieur
   ask shutters with [isOpen = true][
     ;;;; Si c'est un volet entrée
@@ -1404,45 +1306,6 @@ to setupLightInside
   ]
 end
 
-;; Chauffage Clim
-to setupThermostat
-  ;;; Allumage chauffage Debug TODO Retirer
-  ask heaters with [isActive != entranceHeater and pcolor = 64.7][
-    set isActive entranceHeater
-    ifelse isActive[
-      set color red
-    ][
-      set color white
-    ]
-  ]
-  ask heaters with [isActive != principalroomsHeater and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-    set isActive principalroomsHeater
-    ifelse isActive[
-      set color red
-    ][
-      set color white
-    ]
-  ]
-  ask heaters with [isActive != bathroomHeater and pcolor = 84.9][
-    set isActive bathroomHeater
-    ifelse isActive[
-      set color red
-    ][
-      set color white
-    ]
-  ]
-
-  ;;; Allumage clim Debug TODO Retirer
-  ask ACs with [isActive != principalRoomsAC and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-    set isActive principalRoomsAC
-    ifelse isActive[
-      set color cyan
-    ][
-      set color white
-    ]
-  ]
-end
-
 ; FONCTION SETUP
 to setup
   clear-all
@@ -1475,9 +1338,6 @@ to setup
 
   ;; Initialisation variable Luminosité intérieur
   setupLightInside
-
-  ;; Initialisation chauffage/clim
-  setupThermostat
 
 end
 ; FIN SETUP
@@ -1518,120 +1378,6 @@ end
 
 ; Gestion de la lumière
 to lightManagement
-  ;; Debug lights TODO RETIRER CA
-  ask lights with [isActive != entranceLampOn and pcolor = 64.7][
-    set isActive entranceLampOn
-    ifelse isActive [
-      set shape "triangle"
-    ][
-      set shape "triangle 2"
-    ]
-  ]
-  ask lights with [isActive != bathroomLampOn and pcolor = 84.9][
-    set isActive bathroomLampOn
-    ifelse isActive [
-      set shape "triangle"
-    ][
-      set shape "triangle 2"
-    ]
-  ]
-  ask lights with [isActive != principalRoomsLampsOn and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-    set isActive principalRoomsLampsOn
-    ifelse isActive [
-      set shape "triangle"
-    ][
-      set shape "triangle 2"
-    ]
-  ]
-
-  ;; Debug volets TODO RETIRER CA
-  ask shutters with [isOpen = entranceShuttersDown][
-    if any?(neighbors with [pcolor = 64.7])[
-      set isOpen not entranceShuttersDown
-      ifelse isOpen [
-        set color cyan
-      ][
-        set color gray
-      ]
-    ]
-  ]
-  ask shutters with [isOpen = principalRoomsShuttersDown][
-    if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
-      set isOpen not principalRoomsShuttersDown
-      ifelse isOpen [
-        set color cyan
-      ][
-        set color gray
-      ]
-    ]
-    ;;; Cas patch marron
-    if any?(neighbors with [pcolor = 23.3])[
-      let shutterRoom ""
-      ask neighbors with [pcolor = 23.3][
-        if any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])[
-          set shutterRoom "PP"
-        ]
-        if any?(neighbors with [pcolor = 64.7])[
-          set shutterRoom "E"
-        ]
-      ]
-      if shutterRoom = "PP" [
-        set isOpen not principalRoomsShuttersDown
-        ifelse isOpen [
-          set color cyan
-        ][
-          set color gray
-        ]
-      ]
-    ]
-  ]
-
-  ;; Debug fenetres TODO RETIRER CA
-  ask windows with [any?(neighbors with[pcolor = 64.7]) and isOpen != entranceWindowsOpen][
-    set isOpen entranceWindowsOpen
-    ifelse isOpen [
-      ask shutters-here with [isOpen = true] [
-        set color blue
-      ]
-      set color blue
-    ][
-      ask shutters-here with [isOpen = true] [
-        set color cyan
-      ]
-      set color cyan
-    ]
-  ]
-  ask windows with [any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3]) and isOpen != principalRoomsWindowsOpen][
-    set isOpen principalRoomsWindowsOpen
-    ifelse isOpen [
-      ask shutters-here with [isOpen = true] [
-        set color blue
-      ]
-      set color blue
-    ][
-      ask shutters-here with [isOpen = true] [
-        set color cyan
-      ]
-      set color cyan
-    ]
-  ]
-  ask windows with [any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])]) and isOpen != principalRoomsWindowsOpen][
-    set isOpen principalRoomsWindowsOpen
-    ifelse isOpen [
-      ask shutters-here with [isOpen = true] [
-        set color blue
-      ]
-      set color blue
-    ][
-      ask shutters-here with [isOpen = true] [
-        set color cyan
-      ]
-      set color cyan
-    ]
-  ]
-
-
-
   ;; Lumière extérieure
   ;;; Aube
   if (time:is-after? currentDateTime datetimeSunrise and time:is-before? currentDateTime datetimeSunset and isNight)[
@@ -1813,105 +1559,63 @@ end
 to thermostatManagement
   ;; Activation Chauffage
   ;;;; Allumage chauffage Debug TODO Retirer
-  if entranceHeater = true[
-    ask heaters with [isActive != entranceHeater and pcolor = 64.7][
-      set isActive entranceHeater
-      ifelse isActive[
-        set color red
-      ][
-        set color white
-      ]
-    ]
-  ]
-  if principalroomsHeater = true[
-    ask heaters with [isActive != principalroomsHeater and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-      set isActive principalroomsHeater
-      ifelse isActive[
-        set color red
-      ][
-        set color white
-      ]
-    ]
-  ]
-  if bathroomHeater = true[
-    ask heaters with [isActive != bathroomHeater and pcolor = 84.9][
-      set isActive bathroomHeater
-      ifelse isActive[
-        set color red
-      ][
-        set color white
-      ]
-    ]
-  ]
 
   ;;;; Allumage/Extinction par thermostat
   ;;;;; Entrée
-  if entranceHeater = false[
-    ifelse temperatureEntrance < thermostat[
-      ask heaters with [isActive = false and pcolor = 64.7][
-        set isActive true
-        set color red
-      ]
-    ][
-      ask heaters with [isActive = true and pcolor = 64.7][
-        set isActive false
-        set color white
-      ]
+
+  ifelse temperatureEntrance < thermostat[
+    ask heaters with [isActive = false and pcolor = 64.7][
+      set isActive true
+      set color red
     ]
-  ]
-  ;;;;; Pièces principales
-  if principalroomsHeater = false[
-    ifelse temperaturePrincipalRooms < thermostat[
-      ask heaters with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-        set isActive true
-        set color red
-      ]
-    ][
-      ask heaters with [isActive = true and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-        set isActive false
-        set color white
-      ]
-    ]
-  ]
-  if bathroomHeater = false[
-    ;;;;; Salle de bain
-    ifelse temperatureBathroom < thermostat[
-      ask heaters with [isActive = false and pcolor = 84.9][
-        set isActive true
-        set color red
-      ]
-    ][
-      ask heaters with [isActive = true and pcolor = 84.9][
-        set isActive false
-        set color white
-      ]
+  ][
+    ask heaters with [isActive = true and pcolor = 64.7][
+      set isActive false
+      set color white
     ]
   ]
 
-  ;; Activation Climatisation
-  ifelse principalRoomsAC = true[
-    ;;;; Allumage clim Debug TODO Retirer
-    ask ACs with [isActive != principalRoomsAC and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-      set isActive principalRoomsAC
-      ifelse isActive[
-        set color cyan
-      ][
-        set color white
-      ]
+  ;;;;; Pièces principales
+
+  ifelse temperaturePrincipalRooms < thermostat[
+    ask heaters with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+      set isActive true
+      set color red
     ]
   ][
-    ;;;; Allumage/Extinction par thermostat
-    ;;;;; Pièces principales
-    ifelse temperaturePrincipalRooms > thermostat[
-      ask ACs with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-        set isActive true
-        set color cyan
-      ]
-    ][
-      ask ACs with [isActive = true and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
-        set isActive false
-        set color white
-      ]
+    ask heaters with [isActive = true and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+      set isActive false
+      set color white
+    ]
+  ]
+
+
+  ;;;;; Salle de bain
+  ifelse temperatureBathroom < thermostat[
+    ask heaters with [isActive = false and pcolor = 84.9][
+      set isActive true
+      set color red
+    ]
+  ][
+    ask heaters with [isActive = true and pcolor = 84.9][
+      set isActive false
+      set color white
+    ]
+  ]
+
+
+  ;; Activation Climatisation
+  ;;; Allumage/Extinction par thermostat
+  ;;;; Pièces principales
+  ifelse temperaturePrincipalRooms > thermostat[
+    ask ACs with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+      set isActive true
+      set color cyan
+    ]
+  ][
+    ask ACs with [isActive = true and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
+      set isActive false
+      set color white
     ]
   ]
 end
@@ -2789,7 +2493,7 @@ maxTemperatureWinter
 maxTemperatureWinter
 minTemperatureWinter
 50
-10.0
+18.0
 1
 1
 °C
@@ -2899,7 +2603,7 @@ maxTemperatureFall
 maxTemperatureFall
 minTemperatureFall
 50
-18.0
+20000.0
 1
 1
 °C
@@ -3054,71 +2758,6 @@ NIL
 NIL
 1
 
-SWITCH
-190
-705
-318
-738
-entranceLampOn
-entranceLampOn
-1
-1
--1000
-
-SWITCH
-196
-657
-307
-690
-principalRoomsLampsOn
-principalRoomsLampsOn
-1
-1
--1000
-
-SWITCH
-211
-757
-329
-790
-bathroomLampOn
-bathroomLampOn
-1
-1
--1000
-
-SWITCH
-49
-656
-152
-689
-principalRoomsShuttersDown
-principalRoomsShuttersDown
-1
-1
--1000
-
-SWITCH
-41
-715
-167
-748
-entranceShuttersDown
-entranceShuttersDown
-1
-1
--1000
-
-TEXTBOX
-156
-629
-306
-647
-Débug luminosite
-11
-0.0
-1
-
 SLIDER
 455
 290
@@ -3149,37 +2788,6 @@ minTemperatureHour
 h
 HORIZONTAL
 
-TEXTBOX
-733
-623
-883
-641
-Débug température
-11
-0.0
-1
-
-PLOT
-688
-665
-888
-815
-plot 1
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -2674135 true "" "plot temperaturePrincipalRooms"
-"pen-1" 1.0 0 -16777216 true "" "plot temperatureOutside"
-"pen-2" 1.0 0 -13840069 true "" "plot temperatureEntrance"
-"pen-3" 1.0 0 -8990512 true "" "plot temperatureBathroom"
-
 SLIDER
 457
 410
@@ -3205,92 +2813,6 @@ Qualité de l'isolation
 0.0
 1
 
-SWITCH
-470
-669
-612
-702
-entranceWindowsOpen
-entranceWindowsOpen
-1
-1
--1000
-
-SWITCH
-484
-729
-603
-762
-principalRoomsWindowsOpen
-principalRoomsWindowsOpen
-1
-1
--1000
-
-SWITCH
-904
-674
-1047
-707
-entranceHeater
-entranceHeater
-1
-1
--1000
-
-SWITCH
-901
-716
-1048
-749
-bathroomHeater
-bathroomHeater
-1
-1
--1000
-
-SWITCH
-901
-765
-1076
-798
-principalRoomsHeater
-principalRoomsHeater
-1
-1
--1000
-
-SWITCH
-1070
-677
-1224
-710
-principalRoomsAC
-principalRoomsAC
-1
-1
--1000
-
-TEXTBOX
-949
-651
-1099
-669
-Chauffage
-11
-0.0
-1
-
-TEXTBOX
-1129
-653
-1279
-671
-Clim\n
-11
-0.0
-1
-
 TEXTBOX
 738
 258
@@ -3310,7 +2832,7 @@ heaterPower
 heaterPower
 0
 4000
-1506.0
+1507.0
 1
 1
 W
@@ -3424,6 +2946,96 @@ lowBattery
 1
 1
 %
+HORIZONTAL
+
+SLIDER
+46
+643
+218
+676
+nutritionFruitMin
+nutritionFruitMin
+1
+nutritionFruitMax
+15.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+255
+643
+427
+676
+nutritionFruitMax
+nutritionFruitMax
+nutritionFruitMin
+100
+25.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+43
+696
+215
+729
+nutritionVegetableMin
+nutritionVegetableMin
+0
+nutritionVegetableMax
+18.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+254
+696
+428
+729
+nutritionVegetableMax
+nutritionVegetableMax
+nutritionVegetableMin
+100
+36.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+50
+745
+222
+778
+nutritionMeatMin
+nutritionMeatMin
+0
+100
+38.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+273
+742
+445
+775
+nutritionMeatMax
+nutritionMeatMax
+nutritionMeatMin
+100
+50.0
+1
+1
+NIL
 HORIZONTAL
 
 @#$#@#$#@
