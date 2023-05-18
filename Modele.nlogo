@@ -61,6 +61,8 @@ globals[
   dirtBathroom
 ]
 
+
+
 ; DECLARATION TURTLES
 ;; Meubles non connectés
 breed [tables table]
@@ -161,7 +163,7 @@ dishes-own [cleanliness]
 breed [dishwasherPastilles dishwasherPastille]
 
 breed [fruits fruit]
-fruits-own [nutrition freshness]
+fruits-own [nutrition freshness quantity]
 
 breed [vegetables vegetable]
 vegetables-own [nutrition freshness]
@@ -218,6 +220,7 @@ users-own[
   current-path
   path
   isEnRoute
+  currentTask
   targetPatch
 
   ;;; Tâches
@@ -271,6 +274,7 @@ directed-link-breed [useLinks useLink]
 ;;; Tache
 directed-link-breed [taskLinks taskLink]
 taskLinks-own[
+  action ;;;; String qui contient l'action (ex:"Utiliser")
   priority
 ]
 
@@ -867,6 +871,35 @@ to setupFurniture
       set meatQuantity 10
       set mealQuantity 0
       set isActive true
+
+      ;;;;; Ingrédients
+      ask patch-here[
+        sprout-fruits 10[
+          set shape "apple"
+          set size 0.5
+          set color lime
+          set nutrition 25
+          set freshness 100
+          set quantity 100
+        ]
+        sprout-vegetables 10[
+          set shape "pumpkin"
+          set size 0.5
+          set color green
+          set nutrition 25
+          set freshness 100
+        ]
+        sprout-meats 10[
+          set shape "bread"
+          set size 0.5
+          set color red
+          set nutrition 25
+          set freshness 100
+        ]
+      ]
+      create-containLinks-to fruits-here
+      create-containLinks-to vegetables-here
+      create-containLinks-to meats-here
     ]
   ]
   ;;;; Panier à linge
@@ -1172,7 +1205,7 @@ to setupSensors
           or breed = heaters
           or breed = alarms
           or breed = shutters)
-          and count my-in-links = 0
+          and count my-in-sensorLinks = 0
         ][
           set extractedDataName "isActive"
         ]
@@ -1181,12 +1214,45 @@ to setupSensors
   ]
 end
 
-;; Utilisateur TODO
+;; Utilisateur
 to setupUser
   ask patches with [pxcor = 0 and pycor = 3][
     sprout-users 1 [
+      ;;; Turtle
       set shape "person"
       set color white
+
+      ;;; Pour pathfinding
+      set current-path []
+      set path []
+      set isEnRoute false
+      set targetPatch patch 0 0
+
+      ;;; Tâches
+      set tasks []
+
+      ;;; Besoins
+      set hunger 100
+      set sleep 100
+      set comfort 100
+      set health 100
+      set cleanliness 100
+
+      ;;; Anniversaire TODO VARIABILISER
+      set age 21
+      set birthDay 16
+      set birthMonth 6
+
+      ;;; Alerte
+      set isAlert false
+
+      ;;; Mouvement
+      set isRunning false
+      set moveSpeed 5
+      set runSpeed 10
+
+      ;;; Poids
+      set weight 67
     ]
   ]
 end
@@ -2045,13 +2111,24 @@ to-report findPath [source-patch destination-patch]
   report search-path
 end
 
-to goToNextPathInCurrentPath
-  face first current-path
-  move-to first current-path
-  set current-path remove-item 0 current-path
+;; Suivre le chemin avec vitesse en paramètre (en patch/s)
+to goToNextPatchInCurrentPath [speed]
+  ifelse speed > length current-path[
+    move-to last current-path
+    set current-path []
+  ][
+    let nextPatch item ((round speed) - 1) current-path
+    face nextPatch
+    move-to nextPatch
+    let i 0
+    while [i < speed][
+      set current-path remove-item 0 current-path
+      set i i + 1
+    ]
+  ]
 end
 
-to find-shortest-path-to-destination
+to findShortestPathToDestination
   set path findPath patch-here targetPatch
   let optimal-path path
   set current-path path
@@ -2087,7 +2164,7 @@ to roombaBehaviour
     ][
       ;;;; Si batterie faible, va vers la station cible
       ifelse isEnRoute[
-        goToNextPathInCurrentPath
+        goToNextPatchInCurrentPath 1 ;;;; 1 patch/s
         let x xcor
         let y ycor
         ;;;; Le capteur bouge avec le roomba
@@ -2110,7 +2187,7 @@ to roombaBehaviour
         ;;;; Recherche de la station roomba proche
         let targetPatchTmp patch 0 0
         let isFound false
-        ask roombaStations with [isRoombaOnStation = false][
+        ask one-of roombaStations with [isRoombaOnStation = false][
           set targetPatchTmp patch-here
           set isFound true
         ]
@@ -2119,7 +2196,7 @@ to roombaBehaviour
           set targetPatch targetPatchTmp
           set isFound false
         ]
-        find-shortest-path-to-destination
+        findShortestPathToDestination
         set isEnRoute true
       ]
     ]
@@ -2200,8 +2277,194 @@ end
 ; Comportement Utilisateur
 to userBehaviour
   ask Users[
+    ;; Fait la tache en cours
+    if count my-taskLinks != 0[
+      ifelse isEnRoute[
+        goToNextPatchInCurrentPath moveSpeed
+        ;;; Si arrivé à destination
+        if patch-here = targetPatch[
+          set isEnRoute false
+          set current-path []
+        ]
+      ][;;; Si pas en mouvement
+        ;;; Se mettre en route
+        ifelse currentTask = 0[
+          ;;; Si pas de tâche en cours
+          ;;; Récupération de la tâche la plus prioritaire
+          let tasksSorted sort-on [priority] my-taskLinks
+          set currentTask first tasksSorted
 
+          ;;; Récupération du patch destination
+          let destination patch 0 0
+          ask currentTask[
+            ask other-end[
+              set destination one-of neighbors with[pcolor != 0 and pcolor != 105 and pcolor != 23.3]
+            ]
+          ]
+
+            ;;; Calcul de la route
+            set targetPatch destination
+            findShortestPathToDestination
+            set isEnRoute true
+          ][;;; Si arrivé à destination
+          ;;; Réalisation de l'action
+          let actionTmp ""
+          ask currentTask[
+            set actionTmp action
+          ]
+          ;;;; Aller chercher un casse croute (Restes ou fruit)
+          if actionTmp = "get something to eat"[
+            let thingToEat ""
+            let thingToEatBreed ""
+            ask fridges-on neighbors[
+              if any?(fruits-here) [
+                set thingToEat one-of fruits-here
+                set thingToEatBreed "fruit"
+              ]
+              if any?(meals-here) [
+                set thingToEat one-of meals-here
+                set thingToEatBreed "meal"
+              ]
+            ]
+            ;;;;; Prend la chose à manger du frigo
+            create-carryLink-to thingToEat ; TOFIX CREATE-CARRYLINK-TO expected input to be a turtle but got the string
+            ask thingToEat[
+              ask my-containLinks[
+                die
+              ]
+            ]
+            ;;;;; Si restes, mange à table
+            ifelse thingToEatBreed = "meal"[
+              let tableTmp one-of tables with[any?(chairs-on neighbors)]
+              let chairTmp ""
+              ask tableTmp[
+                set chairTmp one-of chairs-on neighbors
+              ]
+              create-taskLink-to tableTmp
+              [
+                set action "put"
+                set priority 0
+              ]
+              create-taskLink-to chairTmp[
+                set action "sit"
+                set priority 0.1
+              ]
+              create-taskLink-to thingToEat[
+                set action "eat on table"
+                set priority 0.2
+              ]
+            ][
+              ;;;;; Si fruit, mange sur place
+              create-taskLink-to thingToEat[
+                set action "eat"
+                set priority 0
+              ]
+            ]
+          ]
+
+          ;;;; Poser un objet sur une table
+          if actionTmp = "put"[
+            let tableToPut ""
+            ask currentTask[
+              set tableToPut other-end
+              die
+            ]
+            ask my-carryLinks[
+              ask other-end[
+                move-to tableToPut
+              ]
+            ]
+          ]
+
+          ;;;; Manger fruit sur place
+          if actionTmp = "eat"[
+            let isFinished false
+            ask currentTask[
+              ask other-end[
+                ifelse quantity > 0[
+                  ;;;; 1 minute pour manger
+                  set quantity quantity - ( 1 / 60 )
+                ][
+                  set isFinished true
+                ]
+              ]
+            ]
+            if isFinished [
+              ask other-end[die]
+              ask currentTask[die]
+            ]
+          ]
+
+          ;;;; Manger repas sur table
+          if actionTmp = "eat on table"[
+            let isFinished false
+            ask currentTask[
+              ask other-end[
+                ifelse quantity > 0[
+                  ;;;; 20 minutes pour manger
+                  set quantity quantity - ( 100 / (60 * 20) )
+                ][
+                  set isFinished true
+                ]
+              ]
+            ]
+            if isFinished [
+              ask other-end[die]
+              ask currentTask[die]
+            ]
+          ]
+
+          ;;;; S'assoir
+          if actionTmp = "sit"[
+            let whereToSit ""
+            ask currentTask[
+              set whereToSit other-end
+              die
+            ]
+            move-to whereToSit
+          ]
+
+          ;;;; TODO Implémenter actions ici
+        ]
+
+
+      ]
+    ]
+    ;; TODO Création des taches
+        ;;; TODO Chargement routine
+
+        ;;; Si a faim, va chercher un casse croute
+        if hunger < 10 and not any? (my-taskLinks with [action = "get something to eat" or action = "eat" or action = "eat on table"]) [
+          create-taskLink-to one-of fridges
+          [
+            set action "get something to eat"
+            set priority 0
+          ]
+        ]
+
+        ;;; TODO Dégradation besoins
+        ;;;; Faim (100 à 0 en 6h)
+        if hunger > 0[
+          set hunger hunger - ( 100 / (60 * 60 * 6))
+        ]
+        if hunger < 0[
+         set hunger 0
+        ]
+
+        ;;;; Sommeil (100 à 0 en 16h)
+        if sleep > 0[
+          set sleep sleep - ( 100 / (60 * 60 * 16))
+        ]
+        if sleep < 0[
+         set sleep 0
+        ]
   ]
+end
+
+; Comportement objets TODO
+to objectsBehaviour
+
+
 end
 
 ; Comportement Capteurs
@@ -3139,6 +3402,15 @@ true
 0
 Polygon -7500403 true true 150 0 135 15 120 60 120 105 15 165 15 195 120 180 135 240 105 270 120 285 150 270 180 285 210 270 165 240 180 180 285 195 285 165 180 105 180 60 165 15
 
+apple
+false
+0
+Polygon -7500403 true true 33 58 0 150 30 240 105 285 135 285 150 270 165 285 195 285 255 255 300 150 268 62 226 43 194 36 148 32 105 35
+Line -16777216 false 106 55 151 62
+Line -16777216 false 157 62 209 57
+Polygon -6459832 true false 152 62 158 62 160 46 156 30 147 18 132 26 142 35 148 46
+Polygon -16777216 false false 132 25 144 38 147 48 151 62 158 63 159 47 155 30 147 18
+
 arrow
 true
 0
@@ -3176,6 +3448,15 @@ Polygon -7500403 true true 15 75 15 225 150 285 150 135
 Line -16777216 false 150 285 150 135
 Line -16777216 false 150 135 15 75
 Line -16777216 false 150 135 285 75
+
+bread
+false
+0
+Polygon -16777216 true false 140 145 170 250 245 190 234 122 247 107 260 79 260 55 245 40 215 32 185 40 155 31 122 41 108 53 28 118 110 115 140 130
+Polygon -7500403 true true 135 151 165 256 240 196 225 121 241 105 255 76 255 61 240 46 210 38 180 46 150 37 120 46 105 61 47 108 105 121 135 136
+Polygon -1 true false 60 181 45 256 165 256 150 181 165 166 180 136 180 121 165 106 135 98 105 106 75 97 46 107 29 118 30 136 45 166 60 181
+Polygon -16777216 false false 45 255 165 255 150 180 165 165 180 135 180 120 165 105 135 97 105 105 76 96 46 106 29 118 30 135 45 165 60 180
+Line -16777216 false 165 255 239 195
 
 bug
 true
@@ -3480,6 +3761,15 @@ Polygon -7500403 true true 165 180 165 210 225 180 255 120 210 135
 Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
+
+pumpkin
+false
+0
+Polygon -7500403 false true 148 30 107 33 74 44 33 58 15 105 0 150 30 240 105 285 135 285 150 270 165 285 195 285 255 255 300 150 268 62 225 43 196 36
+Polygon -7500403 true true 33 58 0 150 30 240 105 285 135 285 150 270 165 285 195 285 255 255 300 150 268 62 226 43 194 36 148 32 105 35
+Polygon -16777216 false false 108 40 75 57 42 101 32 177 79 253 124 285 133 285 147 268 122 222 103 176 107 131 122 86 140 52 154 42 193 66 204 101 216 158 212 209 188 256 164 278 163 283 196 285 234 255 257 199 268 137 251 84 229 52 191 41 163 38 151 41
+Polygon -6459832 true false 133 50 171 50 167 32 155 15 146 2 117 10 126 23 130 33
+Polygon -16777216 false false 117 10 127 26 129 35 132 49 170 49 168 32 154 14 145 1
 
 roomba
 true
