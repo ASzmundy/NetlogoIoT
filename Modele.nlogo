@@ -2277,6 +2277,7 @@ end
 ; Comportement Utilisateur
 to userBehaviour
   ask Users[
+    let currentUser self
     ;; Fait la tache en cours
     if count my-taskLinks != 0[
       ifelse isEnRoute[
@@ -2295,23 +2296,26 @@ to userBehaviour
           set currentTask first tasksSorted
 
           ;;; Récupération du patch destination
-          let destination patch 0 0
+          let destination patch-here
           ask currentTask[
             ask other-end[
-              set destination one-of neighbors with[pcolor != 0 and pcolor != 105 and pcolor != 23.3]
+              if destination != patch-here[
+                set destination one-of neighbors with[pcolor != 0 and pcolor != 105 and pcolor != 23.3]
+              ]
             ]
           ]
 
-            ;;; Calcul de la route
-            set targetPatch destination
-            findShortestPathToDestination
-            set isEnRoute true
-          ][;;; Si arrivé à destination
+          ;;; Calcul de la route
+          set targetPatch destination
+          findShortestPathToDestination
+          set isEnRoute true
+        ][;;; Si arrivé à destination
           ;;; Réalisation de l'action
           let actionTmp ""
           ask currentTask[
             set actionTmp action
           ]
+
           ;;;; Aller chercher un casse croute (Restes ou fruit)
           if actionTmp = "get something to eat"[
             let thingToEat ""
@@ -2327,7 +2331,7 @@ to userBehaviour
               ]
             ]
             ;;;;; Prend la chose à manger du frigo
-            create-carryLink-to thingToEat ; TOFIX CREATE-CARRYLINK-TO expected input to be a turtle but got the string
+            create-carryLink-to thingToEat
             ask thingToEat[
               ask my-containLinks[
                 die
@@ -2360,6 +2364,8 @@ to userBehaviour
                 set priority 0
               ]
             ]
+            ask currentTask[die]
+            set currentTask 0
           ]
 
           ;;;; Poser un objet sur une table
@@ -2383,15 +2389,21 @@ to userBehaviour
               ask other-end[
                 ifelse quantity > 0[
                   ;;;; 1 minute pour manger
-                  set quantity quantity - ( 1 / 60 )
+                  set quantity quantity - ( 100 / 60 )
+                  let nutritionTmp nutrition
+                  ask currentUser[
+                    set hunger hunger + ( nutritionTmp / 60 )
+                  ]
                 ][
                   set isFinished true
                 ]
               ]
             ]
             if isFinished [
-              ask other-end[die]
-              ask currentTask[die]
+              ask currentTask[
+                ask other-end[die]
+              ]
+              set currentTask 0
             ]
           ]
 
@@ -2409,8 +2421,9 @@ to userBehaviour
               ]
             ]
             if isFinished [
-              ask other-end[die]
-              ask currentTask[die]
+              ask currentTask[
+                ask other-end[die]
+              ]
             ]
           ]
 
@@ -2419,7 +2432,6 @@ to userBehaviour
             let whereToSit ""
             ask currentTask[
               set whereToSit other-end
-              die
             ]
             move-to whereToSit
           ]
@@ -2431,39 +2443,52 @@ to userBehaviour
       ]
     ]
     ;; TODO Création des taches
-        ;;; TODO Chargement routine
+    ;;; TODO Chargement routine
 
-        ;;; Si a faim, va chercher un casse croute
-        if hunger < 10 and not any? (my-taskLinks with [action = "get something to eat" or action = "eat" or action = "eat on table"]) [
-          create-taskLink-to one-of fridges
-          [
-            set action "get something to eat"
-            set priority 0
-          ]
-        ]
+    ;;; Si a faim, va chercher un casse croute
+    if hunger < 10 and not any?(my-taskLinks with [action = "get something to eat" or action = "eat" or action = "eat on table"]) [
+      create-taskLink-to one-of fridges
+      [
+        set action "get something to eat"
+        set priority 0
+      ]
+    ]
 
-        ;;; TODO Dégradation besoins
-        ;;;; Faim (100 à 0 en 6h)
-        if hunger > 0[
-          set hunger hunger - ( 100 / (60 * 60 * 6))
-        ]
-        if hunger < 0[
-         set hunger 0
-        ]
+    ;;; TODO Dégradation besoins
+    ;;;; Faim (100 à 0 en 6h)
+    if hunger > 0[
+      set hunger hunger - ( 100 / (60 * 60 * 6))
+    ]
+    if hunger < 0[
+      set hunger 0
+    ]
 
-        ;;;; Sommeil (100 à 0 en 16h)
-        if sleep > 0[
-          set sleep sleep - ( 100 / (60 * 60 * 16))
-        ]
-        if sleep < 0[
-         set sleep 0
-        ]
+    ;;;; Sommeil (100 à 0 en 16h)
+    if sleep > 0[
+      set sleep sleep - ( 100 / (60 * 60 * 16))
+    ]
+    if sleep < 0[
+      set sleep 0
+    ]
   ]
 end
 
-; Comportement objets TODO
+; Comportement objets et meubles TODO
 to objectsBehaviour
+  ask fruits with[any?(my-in-carryLinks)][
+    let carryBy ""
+    ask my-in-carryLinks[
+      set carryBy other-end
+    ]
+    move-to carryBy
+  ]
 
+  ask fridges[
+    set fruitsQuantity count my-containLinks with[is-fruit? other-end]
+    set vegetablesQuantity count my-containLinks with[is-vegetable? other-end]
+    set meatQuantity count my-containLinks with[is-meat? other-end]
+    set mealQuantity count my-containLinks with[is-meal? other-end]
+  ]
 
 end
 
@@ -2507,6 +2532,9 @@ to go
 
   ;; TODO Comportement Utilisateur
   userBehaviour
+
+  ;; TODO Comportement Objets
+  objectsBehaviour
 
   ;; TODO Comportement Capteurs
   sensorBehaviour
