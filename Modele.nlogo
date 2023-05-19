@@ -163,7 +163,7 @@ shutters-own [isOpen]
 breed [extinguishers extinguisher]
 extinguishers-own [powderQuantity]
 
-breed [dishes dishe]
+breed [dishes dish]
 dishes-own [cleanliness]
 
 breed [dishwasherPastilles dishwasherPastille]
@@ -688,6 +688,15 @@ to setupFurniture
       set heading 90
       set color brown
       set laundryQuantity 10
+      ask patch-here[
+        sprout-laundrys 10[
+          set size 0.5
+          set shape "tshirt"
+          set weight 1
+          set cleanliness 100
+        ]
+      ]
+      create-containLinks-to dishes-here
     ]
   ]
 
@@ -698,6 +707,15 @@ to setupFurniture
       set shape "square 2"
       set color brown
       set dishesQuantity 10
+      ask patch-here[
+        sprout-dishes 10[
+          set size 0.5
+          set color white
+          set shape "dish"
+          set cleanliness 100
+        ]
+      ]
+      create-containLinks-to dishes-here
     ]
   ]
 
@@ -2107,12 +2125,22 @@ to put [inputUser inputObject inputDestinationPatch]
 end
 ;; Prendre un objet
 to take [inputUser inputObject]
+  ;;; Pour gérer cas meal/dish
+
   if inputObject != nobody[
+    let parentObject nobody
     ask inputObject[
-      ask my-in-containLinks[die]
+      ;;; Supression liens contenance (hors dish)
+      ask my-in-containLinks with[not is-dish? other-end][die]
+      ask my-in-containLinks with[is-dish? other-end][
+        set parentObject other-end
+      ]
     ]
     ask inputUser[
       create-carryLink-to inputObject
+      if parentObject != nobody[
+        create-carryLink-to parentObject
+      ]
     ]
   ]
 end
@@ -2323,6 +2351,7 @@ to userBehaviour
         ]
 
         ;;;; Tâche s'assoir
+        ;;;; Cible = chaise
         if currentTaskAction = "sit"[
           let whereToSit nobody
           ask currentTask[
@@ -2334,6 +2363,7 @@ to userBehaviour
         ]
 
         ;;;; Tâche aller au lit
+        ;;;; Cible = lit
         if currentTaskAction = "sleep"[
           let bedTmp nobody
           let isFinished false
@@ -2359,91 +2389,67 @@ to userBehaviour
         ]
 
         ;;;; Tâche faire la cuisine ou manger des restes
-        ;;;; Cible = frigo, placard, plaque
-        ;;;; TODO Changer nom de cette tâche
-        if currentTaskAction = "cook something or eat leftovers"[
+        ;;;; Cible = frigo
+        if currentTaskAction = "eat meal"[
           let toEat nobody
           let nextTask nobody
-          ;;;;; Récupération cible tache
-          let otherEnd nobody
+          let fridgeTmp nobody
           ask currentTask[
-            set otherEnd other-end
+            set fridgeTmp other-end
           ]
-
-          ;;;;; Si cible = frigo, prendre des restes ou des ingrédients
-          if is-fridge? otherEnd[
-            let isEatingLeftovers false
-
-            ask otherEnd[
-              ifelse mealQuantity > 0 [
-                ;;;;;; Si restes dispo dans le frigo
-                set isEatingLeftovers true
-                ;;;;;;; Prendre le repas
-                ask one-of my-containLinks with[is-meal? other-end][
-                  ask other-end[
-                    take currentUser self
-                  ]
+          let isEatingLeftovers false
+          ;;;;; Prendre depuis frigo
+          ask fridgeTmp[
+            ifelse mealQuantity > 0 [
+              ;;;;;; Si restes dispo dans le frigo
+              set isEatingLeftovers true
+              ;;;;;;; Prendre le repas
+              ask one-of my-containLinks with[is-meal? other-end][
+                ask other-end[
+                  take currentUser self
                 ]
-              ][
-                ;;;;;; Sinon prendre ingrédients
-                let toTake nobody
-                let sumNutrition 0
-
-                ;;;;;;; Prendre légume
-                ask one-of my-containLinks with[is-vegetable? other-end][
-                  ask other-end[
-                    take currentUser self
-                    set sumNutrition sumNutrition + nutrition
-                  ]
-                ]
-
-                ;;;;;;; Prendre viande
-                ask one-of my-containLinks with[is-vegetable? other-end][
-                  ask other-end[
-                    take currentUser self
-                    set sumNutrition sumNutrition + nutrition
-                  ]
-                ]
-              ]
-            ]
-
-            ;;;;; Définition prochaine tâche
-            ;;;;;; Si l'utilisateur mange des restes
-            ifelse isEatingLeftovers[
-              ;;;;;;; Faut-il réchauffer ce repas ?
-              let isEatableColdTmp false
-              ask toEat [set isEatableColdTmp isEatableCold]
-              ifelse isEatableColdTmp[
-                ;;;;;;; Si mangable froid, aller à table
-                set nextTask createTask currentUser "put on table" one-of tables with[any?(chairs-on neighbors)] 1
-              ][
-                ;;;;;; Sinon réchauffer
-                set nextTask createTask currentUser "warm up food" one-of microwaves 1
               ]
             ][
-              ;;;;;; Va cuisiner
-              set nextTask createTask currentUser "cook something or eat leftovers" one-of drawers 1
-            ]
-
-            ;;;;; Passage à la tache suivante
-            endTask currentUser nextTask
-            let destPatch nobody
-            ask otherEnd[
-              set destPatch patch-here
-            ]
-            if not member? destPatch neighbors[
-              set isEnRoute true
+              ;;;;;; Sinon prendre ingrédients
+              let sumNutrition 0
+              ;;;;;;; Prendre légume
+              ask one-of my-containLinks with[is-vegetable? other-end][
+                ask other-end[
+                  take currentUser self
+                  set sumNutrition sumNutrition + nutrition
+                ]
+              ]
+              ;;;;;;; Prendre viande
+              ask one-of my-containLinks with[is-vegetable? other-end][
+                ask other-end[
+                  take currentUser self
+                  set sumNutrition sumNutrition + nutrition
+                ]
+              ]
             ]
           ]
-
-          ;;;;; Prendre de la vaisselle
-          if is-drawer? otherEnd[
-
+          ;;;;; Définition prochaine tâche
+          ;;;;;; Si l'utilisateur mange des restes
+          ifelse isEatingLeftovers[
+            ;;;;;;; Faut-il réchauffer ce repas ?
+            let isEatableColdTmp false
+            ask toEat [set isEatableColdTmp isEatableCold]
+            ifelse isEatableColdTmp[
+              ;;;;;;; Si mangable froid, aller à table
+              set nextTask createTask currentUser "put on table" one-of tables with[any?(chairs-on neighbors)] 1
+            ][
+              ;;;;;; Sinon réchauffer
+              set nextTask createTask currentUser "warm up food" one-of microwaves 1
+            ]
+          ][
+            ;;;;;; Sinon cuisiner
+            set nextTask createTask currentUser "prepare meal" one-of cupboards 1
           ]
-
+          ;;;;; Passage à la tache suivante
+          endTask currentUser nextTask
         ]
 
-        ;;;; Réchauffer restes
+        ;;;; Tâche réchauffer restes
         ;;;; Cible = micro ondes
         if currentTaskAction = "warm up food"[
           let targetMicrowave nobody
@@ -2453,11 +2459,12 @@ to userBehaviour
           let isCurrentlyWarmingUp false
           ask targetMicrowave [set isCurrentlyWarmingUp isActive]
 
+          ;;;;; Si micro-ondes pas encore activé
           if not isCurrentlyWarmingUp[
             ifelse any? my-carryLinks with[is-meal? other-end][
               let foodToWarmUp nobody
-              ;;;;; Si pas encore mis dans le micro-ondes
-              ;;;;;; Mettre dans le micro-ondes
+              ;;;;;; Si pas encore mis dans le micro-ondes
+              ;;;;;;; Mettre dans le micro-ondes
               ask my-carryLinks with[is-meal? other-end][
                 set foodToWarmUp other-end
                 ask foodToWarmUp[
@@ -2465,43 +2472,42 @@ to userBehaviour
                 ]
                 die
               ]
-              ;;;;;; Allumer le micro-ondes
+              ;;;;;;; Allumer le micro-ondes
               ask targetMicrowave [
                 create-containLink-to foodToWarmUp
                 set isActive true
                 set timeLeft 120 ;;;;;; 120
               ]
             ][
-              ;;;;; Si fini
-              ;;;;; Prendre le repas et le mettre sur la table
-              let foodToEat nobody
+              ;;;;;; Si fini
+              ;;;;;; Prendre le repas et le mettre sur la table
+              let mealToEat nobody
               ask targetMicrowave[
                 ask one-of my-containLinks[
-                  set foodToEat other-end
-                  die
+                  set mealToEat other-end
                 ]
               ]
-              create-carryLink-to foodToEat
-              let tableToPut nobody
-              ask one-of tables with[any?(chairs-on neighbors)][
-                set tableToPut self
-              ]
-              let nextTask nobody
-              create-taskLink-to tableToPut[
-                set action "put on table"
-                set priority 1
-                set nextTask self
-              ]
-              ask currentTask[die]
-              set currentTask nextTask
-              let destPatch nobody
-              ask tableToPut[
-                set destPatch patch-here
-              ]
-              if not member? destPatch neighbors[
-                set isEnRoute true
-              ]
+              take currentUser mealToEat
+              let nextTask createTask currentUser "put on table" one-of tables with[any?(chairs-on neighbors)] 1
+              endTask currentUser nextTask
             ]
+          ]
+        ]
+
+        ;;;; Tâche préparer repas
+        ;;;; Cible = Placard,Plaque
+        if currentTaskAction = "prepare meal"[
+          let taskTarget nobody
+          ask currentTask[
+            set taskTarget other-end
+          ]
+
+          if is-cupboard? taskTarget[
+            ;;;;; TODO Prendre vaisselle
+          ]
+
+          if is-hotplate? taskTarget[
+            ;;;;; TODO Poser et créer repas
           ]
         ]
 
@@ -2514,6 +2520,15 @@ to userBehaviour
       if hour = (read-from-string substring (item nextRoutineIndex RoutineTimes) 0 2) and minute = (read-from-string substring (item nextRoutineIndex RoutineTimes) 3 5)[
         ;;;; Réveil
         if item nextRoutineIndex RoutineActions = "wake up"[
+          ;;;;; Si dors actuellement, se réveiller
+          if currentTask != nobody[
+            ask currentTask[
+              if action = "sleep"[
+                endTask currentUser nobody
+              ]
+            ]
+          ]
+          ;;;;; Annulation sleep
           ask my-taskLinks with [action = "sleep"][
             die
           ]
@@ -2521,34 +2536,22 @@ to userBehaviour
 
         ;;;; Aller au lit
         if item nextRoutineIndex RoutineActions = "sleep" and not any?(my-taskLinks with [action = "sleep"])[
-          create-taskLink-to one-of beds
-          [
-            set action "sleep"
-            set priority 2
-          ]
+          let nextTask createTask currentUser "sleep" one-of beds 2
         ]
 
         ;;;; Petit déjeuner
-        if item nextRoutineIndex RoutineActions = "breakfast" and not any?(my-taskLinks with [action = "get something to eat" or action = "eat fruit" or action = "eat on table"])[
-          create-taskLink-to one-of fridges
-          [
-            set action "get something to eat"
-            set priority 2
-          ]
+        if item nextRoutineIndex RoutineActions = "breakfast" and not any?(my-taskLinks with [action = "get something to eat" or action = "eat meal" or action = "eat fruit"])[
+          let nextTask createTask currentUser "eat fruit" one-of fridges 2
         ]
 
         ;;;; Déjeuner/Diner
         if (item nextRoutineIndex RoutineActions = "lunch" or item nextRoutineIndex RoutineActions = "diner") and not any?(my-taskLinks with [action = "get something to eat" or action = "eat fruit" or action = "eat on table"])[
-          create-taskLink-to one-of fridges
-          [
-            set action "cook something or eat leftovers"
-            set priority 2
-          ]
+          let nextTask createTask currentUser "eat meal" one-of fridges 2
         ]
 
         ;;;; Prendre une douche
-        if item nextRoutineIndex RoutineActions = "shower" and not any?(my-taskLinks with [action = "shower"])[
-
+        if item nextRoutineIndex RoutineActions = "shower" and not any?(my-taskLinks with [action = "take shower"])[
+          let nextTask createTask currentUser "take shower" one-of showers 2
         ]
 
 
@@ -2558,6 +2561,7 @@ to userBehaviour
         set nextRoutineIndex nextRoutineIndex - 1
       ]
     ]
+
     ;;; Besoins dynamiques
     ;;;; Si a faim, va chercher un casse croute
     if hunger < 10 and not any?(my-taskLinks with [action = "get something to eat" or action = "eat fruit" or action = "eat on table"]) [
@@ -2603,6 +2607,11 @@ to userBehaviour
         set sleep 0
       ]
     ]
+
+    ;;;; Propreté
+    ;;;; TODO
+
+
   ]
 end
 
@@ -3689,6 +3698,18 @@ false
 0
 Circle -7500403 true true 0 0 300
 
+dish
+false
+0
+Circle -7500403 true true 60 60 180
+Rectangle -7500403 true true 255 90 270 225
+Rectangle -7500403 true true 30 90 45 225
+Polygon -7500403 true true 45 90 75 90 75 45 75 30 60 30 60 75 45 75 45 30 30 30 30 75 15 75 15 30 0 30 0 90 30 90 45 90 30 90 75 90 75 90 45 90 30 90 75 90 0 90 0 30 15 30 15 75 30 75 30 30 45 30 45 75 60 75 60 30 75 30 75 90 60 90 45 90 30 90
+Rectangle -7500403 true true 269 49 275 92
+Rectangle -7500403 true true 260 50 266 93
+Rectangle -7500403 true true 251 49 257 92
+Circle -7500403 true true 17 51 42
+
 dot
 false
 0
@@ -3770,6 +3791,16 @@ Circle -7500403 true true 96 51 108
 Circle -16777216 true false 113 68 74
 Polygon -10899396 true false 189 233 219 188 249 173 279 188 234 218
 Polygon -10899396 true false 180 255 150 210 105 210 75 240 135 240
+
+food
+false
+0
+Polygon -7500403 true true 30 105 45 255 105 255 120 105
+Rectangle -7500403 true true 15 90 135 105
+Polygon -7500403 true true 75 90 105 15 120 15 90 90
+Polygon -7500403 true true 135 225 150 240 195 255 225 255 270 240 285 225 150 225
+Polygon -7500403 true true 135 180 150 165 195 150 225 150 270 165 285 180 150 180
+Rectangle -7500403 true true 135 195 285 210
 
 garbage can
 false
@@ -3975,6 +4006,12 @@ Circle -16777216 true false 24 174 42
 Circle -7500403 false true 24 174 42
 Circle -7500403 false true 144 174 42
 Circle -7500403 false true 234 174 42
+
+tshirt
+true
+0
+Polygon -7500403 true true 180 60 120 60 45 90 60 135 90 135 90 240 210 240 210 135 240 135 255 90
+Polygon -16777216 true false 180 60 150 75 120 60 180 60 180 60
 
 turtle
 true
