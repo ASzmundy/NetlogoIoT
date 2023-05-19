@@ -282,6 +282,7 @@ directed-link-breed [taskLinks taskLink]
 taskLinks-own[
   action ;;;; String qui contient l'action (ex:"Utiliser")
   priority
+  time ;;;; Pour garder en mémoire le temps de la tache
 ]
 
 ; FONCTIONS POUR SETUP
@@ -619,13 +620,13 @@ to setupLightOutside
     set isNight false
   ]
   ;;;; Si aube
-  if (time:is-before? currentDateTime datetimeSunrise and time:is-after? currentDateTime (time:plus datetimeSunrise -45 "minutes")) [
+  if (time:is-after? currentDateTime datetimeSunrise and time:is-after? currentDateTime (time:plus datetimeSunrise -45 "minutes")) [
     set luminosityOutside (time:difference-between datetimeSunrise currentDateTime "seconds") * (outsideMaxLuminosity / 2700)
     set isNight true
   ]
   ;;;; Si crépuscule
-  if (time:is-after? currentDateTime datetimeSunset and time:is-before? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
-    set luminosityOutside outsideMaxLuminosity - (time:difference-between datetimeSunset currentDateTime "seconds") * (outsideMaxLuminosity / 2700)
+  if (time:is-before? currentDateTime datetimeSunset and time:is-before? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
+    set luminosityOutside outsideMaxLuminosity - (time:difference-between currentDateTime datetimeSunset "seconds") * (outsideMaxLuminosity / 2700)
     set isNight false
   ]
 end
@@ -2150,12 +2151,24 @@ end
 ;; Crée et retourne la tâche sous forme de taskLink
 to-report createTask [inputUser inputAction inputTarget inputPriority]
   let createdTask nobody
-  ask inputUser[
-    create-taskLink-to inputTarget
-    [
-      set action inputAction
-      set priority inputPriority
-      set createdTask self
+  if inputTarget != nobody[
+    ask inputUser[
+      create-taskLink-to inputTarget
+      [
+        set action inputAction
+        set priority inputPriority
+        set createdTask self
+      ]
+      let taskTargetPatch nobody
+      ask inputTarget[
+        set taskTargetPatch patch-here
+      ]
+      ifelse taskTargetPatch != patch-here and not member? taskTargetPatch neighbors[
+        findShortestPathToDestination
+        set isEnRoute true
+      ][
+        set isEnRoute false
+      ]
     ]
   ]
   report createdTask
@@ -2200,7 +2213,7 @@ to userBehaviour
       ;; Fait la tache en cours
       ifelse isEnRoute[
         ;;; Va vers la destination
-        goToNextPatchInCurrentPath moveSpeed
+        goToNextPatchInCurrentPath 1 ;moveSpeed
         ;;; Si arrivé à destination
         if patch-here = targetPatch[
           set isEnRoute false
@@ -2256,9 +2269,11 @@ to userBehaviour
 
         ;;;; Tâche poser un repas sur la table
         ;;;; Cible = Table
-        if currentTaskAction = "put meal on table"[
+        if currentTaskAction = "put meal on table"[ ;TOFIX N'arrive pas à mettre sur la table
+          let tableToPut nobody
           let patchTableToPut nobody
           ask currentTask[
+            set tableToPut other-end
             ask other-end[
               set patchTableToPut patch-here
             ]
@@ -2266,7 +2281,8 @@ to userBehaviour
           ask my-carryLinks with[is-dish? other-end][
             put currentUser other-end patchTableToPut
           ]
-          endTask currentUser nobody
+          let nextTask createTask currentUser "eat on table" tableToPut 1
+          endTask currentUser nextTask
         ]
 
 
@@ -2460,7 +2476,7 @@ to userBehaviour
                 ]
               ]
               ;;;;;;; Prendre viande
-              ask one-of my-containLinks with[is-vegetable? other-end][
+              ask one-of my-containLinks with[is-meat? other-end][
                 ask other-end[
                   take currentUser self
                 ]
@@ -2658,7 +2674,51 @@ to userBehaviour
           ]
         ]
 
-        ;;;; TODO Implémenter actions de l'utilisateur ici
+        ;;;; Tâche prendre une douche
+        if currentTaskAction = "take shower"[
+          let taskTarget nobody
+          let isFinished false
+
+          ;;;;; Monte dans la douche si n'est pas déjà dedans
+          let taskTargetPatch nobody
+          ask currentTask[
+            set taskTarget other-end
+            ask other-end[
+              set taskTargetPatch patch-here
+            ]
+          ]
+          if patch-here != taskTargetPatch[
+            move-to taskTargetPatch
+          ]
+          ;;;;; Allume la douche si pas déjà activée
+          ask showers-here[
+            if not isActive[
+              set isActive true
+            ]
+            ;;;;; Nettoyage de l'utilisateur sous la douche
+            ask users-here[
+              if cleanliness < 100[
+                set cleanliness cleanliness + (100 / (60 * 15))
+              ]
+              if cleanliness > 100[
+                set cleanliness 100
+              ]
+            ]
+          ]
+          ;;;;; Fini au bout de 15 minutes
+          ask currentTask[
+            ifelse time > (60 * 15)[
+              set isFinished true
+            ][
+              set time time + 1
+            ]
+          ]
+          if isFinished[
+            endTask currentUser nobody
+          ]
+        ]
+
+        ;;;; TODO Implémenter actions des tâches ici
       ]
     ]
     ;; Création des taches
@@ -2683,22 +2743,22 @@ to userBehaviour
 
         ;;;; Aller au lit
         if item nextRoutineIndex RoutineActions = "sleep" and not any?(my-taskLinks with [action = "sleep"])[
-          let nextTask createTask currentUser "sleep" one-of beds 2
+          let nextTask createTask currentUser "sleep" one-of beds 3
         ]
 
         ;;;; Petit déjeuner
         if item nextRoutineIndex RoutineActions = "breakfast" and not any?(my-taskLinks with [action = "get something to eat" or action = "get meal" or action = "eat fruit"])[
-          let nextTask createTask currentUser "eat fruit" one-of fridges 2
+          let nextTask createTask currentUser "eat fruit" one-of fruits 3
         ]
 
         ;;;; Déjeuner/Diner
-        if (item nextRoutineIndex RoutineActions = "lunch" or item nextRoutineIndex RoutineActions = "diner") and not any?(my-taskLinks with [action = "get something to eat" or action = "eat fruit" or action = "eat on table"])[
-          let nextTask createTask currentUser "get meal" one-of fridges 2
+        if (item nextRoutineIndex RoutineActions = "lunch" or item nextRoutineIndex RoutineActions = "diner") and not any?(my-taskLinks with [action = "get something to eat" or action = "eat on table"])[
+          let nextTask createTask currentUser "get meal" one-of fridges 3
         ]
 
         ;;;; Prendre une douche
         if item nextRoutineIndex RoutineActions = "shower" and not any?(my-taskLinks with [action = "take shower"])[
-          let nextTask createTask currentUser "take shower" one-of showers 2
+          let nextTask createTask currentUser "take shower" one-of showers 3
         ]
 
 
@@ -2711,22 +2771,14 @@ to userBehaviour
 
     ;;; Besoins dynamiques
     ;;;; Si a faim, va chercher un casse croute
-    if hunger < 10 and not any?(my-taskLinks with [action = "get something to eat" or action = "eat fruit" or action = "eat on table"]) [
-      create-taskLink-to one-of fridges
-      [
-        set action "get something to eat"
-        set priority 1
-      ]
-    ]
+    ;if hunger < 10 and not any?(my-taskLinks with [action = "get something to eat" or action = "eat fruit" or action = "eat on table" or action = "sleep"]) [
+    ;  let task createTask currentUser "get something to eat" one-of fridges with[any?(my-containLinks with[is-fruit? other-end])] 2
+    ;]
 
     ;;;; Si fatigué, va dormir
-    if sleep < 10 and not any?(my-taskLinks with [action = "sleep" or action = "go to bed"]) [
-      create-taskLink-to one-of beds
-      [
-        set action "sleep"
-        set priority 1
-      ]
-    ]
+    ;if sleep < 10 and not any?(my-taskLinks with [action = "sleep"]) [
+    ;  let task createTask currentUser "sleep" one-of beds 2
+    ;]
 
     ;;; TODO Dégradation besoins
     ;;;; Faim (100 à 0 en 6h)
@@ -2786,11 +2838,21 @@ to objectsBehaviour
   ask hotplates[
     ifelse isActive[
       if color != red[set color red]
-      ;;; TODO Cuisson
-
+      ;;; chauffe des repas
+      ask meals-here[
+        set temperature temperature + ( 100 / ( 5 * 60 ))
+        if temperature > cookingTemperature[
+          set cookingState cookingState + ( 100 / ( 5 * 60 ))
+        ]
+      ]
     ][
       if color != black[set color black]
     ]
+  ]
+
+  ;; TODO Comportement repas
+  ask meals[
+
   ]
 
   ;; Mise à jour quantités frigo
