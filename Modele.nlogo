@@ -2551,6 +2551,39 @@ to userBehaviour
             ]
           ]
 
+          ;;;; Tâche sieste
+          if currentTaskAction = "rest"[
+            let bedTmp nobody
+            let isFinished false
+            ask currentTask[
+              set bedTmp other-end
+            ]
+
+            ;;;;; Monte sur le lit
+            if not any?(beds-here)[
+              move-to bedTmp
+            ]
+
+            ;;;;; Dors
+            if not isSleeping [set isSleeping true]
+
+            ;;;;; Vérification temps de sieste (3h max)
+            let taskTime 0
+            ask currentTask [set taskTime time]
+            ifelse sleep < 99 and taskTime < ( 60 * 60 * 3) [
+              ;;;;;; Si dort encore
+              ;;;;;; 9h de sommeil pour remplir besoin 100%
+              set sleep sleep + ( 100 / (60 * 60 * 9) )
+            ][
+              ;;;;;; Si se réveille
+              set isFinished true
+            ]
+            if isFinished [
+              set isSleeping false
+              endTask currentUser nobody
+            ]
+          ]
+
           ;;;; Tâche faire la cuisine ou manger des restes
           ;;;; Cible = frigo
           if currentTaskAction = "get meal"[
@@ -2821,18 +2854,23 @@ to userBehaviour
             ]
             ;;;;; Fini au bout de 15 minutes
             ask currentTask[
-              ifelse time > (60 * 15)[
+              if time > (60 * 15)[
                 set isFinished true
-              ][
-                set time time + 1
               ]
             ]
             if isFinished[
+              ;;;;; Si fini, éteindre douche
+              ask showers-here[
+                if isActive[
+                  set isActive false
+                ]
+              ]
               endTask currentUser nobody
             ]
           ]
 
           ;;;; Tâche sortir dehors
+          ;;;; Cible = porte d'entrée
           if currentTaskAction = "go outside"[
             ;;;;; Eteint les lumières de l'entrée
             ask lights with[pcolor = 64.7 and isActive][
@@ -2841,49 +2879,64 @@ to userBehaviour
             set isOutside true
           ]
 
-          ;;;; Tâche sieste
-          if currentTaskAction = "rest"[
-            let bedTmp nobody
-            let isFinished false
-            ask currentTask[
-              set bedTmp other-end
-            ]
+          ;;;; Tâche faire les courses
+          ;;;; Cible = porte d'entrée
+          if currentTaskAction = "go to store"[
+            ifelse isOutside[
+              ;;;;; Si dehors
+              let isFinished false
+              ask currentTask [
+                if time > ( 60 * 60 )[ ;;;;; Durée 1H TODO Rendre variable
+                  set isFinished true
+                ]
+              ]
 
-            ;;;;; Monte sur le lit
-            if not any?(beds-here)[
-              move-to bedTmp
-            ]
-
-            ;;;;; Dors
-            if not isSleeping [set isSleeping true]
-
-            ;;;;; Vérification temps de sieste (3h max)
-            let taskTime 0
-            ask currentTask [set taskTime time]
-            ifelse sleep < 99 and taskTime < ( 60 * 60 * 3) [
-              ;;;;;; Si dort encore
-              ;;;;;; 9h de sommeil pour remplir besoin 100%
-              set sleep sleep + ( 100 / (60 * 60 * 9) )
-
-              ask currentTask [set time time + 1]
+              if isFinished[
+                set isOutside false
+                ;;;;;; rentrer avec les courses
+                let nextTask createTask currentUser "store groceries" one-of fridges 1
+                endTask currentUser nextTask
+              ]
             ][
-              ;;;;;; Si se réveille
-              set isFinished true
-            ]
-            if isFinished [
-              set isSleeping false
-              endTask currentUser nobody
+              ;;;;; Si pas encore sorti
+              ;;;;; Eteint les lumières de l'entrée
+              ask lights with[pcolor = 64.7 and isActive][
+                set isActive false
+              ]
+              set isOutside true
             ]
           ]
 
+          ;;;; Tâche ranger les courses
+          ;;;; Cible = frigo
+          if currentTaskAction = "store groceries"[
+            let taskTargetPatch nobody
+            ask currentTask[
+              ask other-end[
+                set taskTargetPatch patch-here
+              ]
+            ]
+            ask my-carryLinks with[is-vegetable? other-end or is-meat? other-end or is-fruit? other-end or is-meal? other-end][
+              put currentUser other-end taskTargetPatch
+            ]
+            endTask currentUser nobody
+          ]
 
-          ;;;; TODO Vaisselle
+
+          ;;;; TODO Vaisselle si pas bcp dans placard
+
+          ;;;; TODO Faire les Courses
 
           ;;;; TODO Implémenter actions des tâches ici
-        ]
+
+          ;;;; Incrémentation temps tâche
+          if currentTask != nobody[
+            ask currentTask [set time time + 1]
+          ]
+        ] ;;; FIN Définition tâches
       ]
 
-      ;;; Vérification si l'utilisateur dort
+      ;; Vérification si l'utilisateur dort
       if currentTask != nobody[
         let isOnBed false
         if any?(beds-here)[set isOnBed true]
@@ -2901,8 +2954,8 @@ to userBehaviour
         set label ""
       ]
 
-      ;;;; Lumière
-      ;;;;; Salle de bain
+      ;;; Lumière
+      ;;;; Salle de bain
       ifelse pcolor = 84.9 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 84.9]))[
         if luminosityBathroom = 0[
           ask lights with[pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))]
@@ -2917,7 +2970,7 @@ to userBehaviour
         ]
       ]
 
-      ;;;;; Entrée
+      ;;;; Entrée
       ifelse pcolor = 64.7 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 64.7]))[
         ifelse luminosityEntrance = 0[
           ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))]
@@ -2925,7 +2978,7 @@ to userBehaviour
             set isActive true
           ]
         ][
-          ;;;;;; Si il fait clair, éteindre les lumières
+          ;;;;; Si il fait clair, éteindre les lumières
           if luminosityEntrance = luminosityOutside[
             ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7])) and isActive][
               set isActive false
@@ -2939,14 +2992,14 @@ to userBehaviour
         ]
       ]
 
-      ;;;;; Chambre
+      ;;;; Chambre
       ifelse pcolor = 126.3 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 126.3])) and not isSleeping[
         ifelse luminosityPrincipalRooms = 0[
           ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and not isActive][
             set isActive true
           ]
         ][
-          ;;;;;; Si il fait clair, éteindre les lumières
+          ;;;;; Si il fait clair, éteindre les lumières
           if luminosityPrincipalRooms = luminosityOutside[
             ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and isActive][
               set isActive false
@@ -2958,7 +3011,7 @@ to userBehaviour
           set isActive false
         ]
       ]
-      ;;;;; SàM
+      ;;;; SàM
       ifelse pcolor = 14.4 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 14.4]))[
         ifelse luminosityPrincipalRooms = 0[
           ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))]
@@ -2966,7 +3019,7 @@ to userBehaviour
             set isActive true
           ]
         ][
-          ;;;;;; Si il fait clair, éteindre les lumières
+          ;;;;; Si il fait clair, éteindre les lumières
           if luminosityPrincipalRooms = luminosityOutside[
             ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4])) and isActive][
               set isActive false
@@ -2979,7 +3032,7 @@ to userBehaviour
           set isActive false
         ]
       ]
-      ;;;;; Cuisine
+      ;;;; Cuisine
       ifelse pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))[
         ifelse luminosityPrincipalRooms = 0[
           ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))]
@@ -2987,7 +3040,7 @@ to userBehaviour
             set isActive true
           ]
         ][
-          ;;;;;; Si il fait clair, éteindre les lumières
+          ;;;;; Si il fait clair, éteindre les lumières
           if luminosityPrincipalRooms = luminosityOutside[
             ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4])) and isActive][
               set isActive false
@@ -3000,6 +3053,7 @@ to userBehaviour
           set isActive false
         ]
       ]
+
     ] ;; FIN Si à la maison
 
     ;; Création de tâches
@@ -3049,6 +3103,12 @@ to userBehaviour
           let nextTask createTask currentUser "go outside" entranceDoor 3
         ]
 
+        ;;;; Faire les courses
+        if item nextRoutineIndex RoutineActions = "go to store" and not any?(my-taskLinks with [action = "go to store"]) and not isOutside[
+          let entranceDoor one-of doors with[xcor = 0 or ycor = 0]
+          let nextTask createTask currentUser "go to store" entranceDoor 3
+        ]
+
         ;;;; Rentrer à la maison
         if item nextRoutineIndex RoutineActions = "go back home" and isOutside[
           if isOutside[
@@ -3066,8 +3126,6 @@ to userBehaviour
             die
           ]
         ]
-
-        ;;;; TODO Faire les courses
 
         ;;;; TODO Ajouter prochaines actions routines ici (comme dans fichier)
 
@@ -3092,7 +3150,7 @@ to userBehaviour
 
 
 
-    ;;; TODO Dégradation besoins
+    ;;; Dégradation besoins
     ;;;; Faim (100 à 0 en 18h)
     if hunger > 0[
       set hunger hunger - ( 100 / (60 * 60 * 18))
