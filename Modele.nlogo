@@ -2841,6 +2841,42 @@ to userBehaviour
             set isOutside true
           ]
 
+          ;;;; Tâche sieste
+          if currentTaskAction = "rest"[
+            let bedTmp nobody
+            let isFinished false
+            ask currentTask[
+              set bedTmp other-end
+            ]
+
+            ;;;;; Monte sur le lit
+            if not any?(beds-here)[
+              move-to bedTmp
+            ]
+
+            ;;;;; Dors
+            if not isSleeping [set isSleeping true]
+
+            ;;;;; Vérification temps de sieste (3h max)
+            let taskTime 0
+            ask currentTask [set taskTime time]
+            ifelse sleep < 99 and taskTime < ( 60 * 60 * 3) [
+              ;;;;;; Si dort encore
+              ;;;;;; 9h de sommeil pour remplir besoin 100%
+              set sleep sleep + ( 100 / (60 * 60 * 9) )
+
+              ask currentTask [set time time + 1]
+            ][
+              ;;;;;; Si se réveille
+              set isFinished true
+            ]
+            if isFinished [
+              set isSleeping false
+              endTask currentUser nobody
+            ]
+          ]
+
+
           ;;;; TODO Vaisselle
 
           ;;;; TODO Implémenter actions des tâches ici
@@ -2969,7 +3005,7 @@ to userBehaviour
     ;; Création de tâches
     ;;; Routine
     if nextRoutineIndex >= 0[
-      if hour = (read-from-string substring (item nextRoutineIndex RoutineTimes) 0 2) and minute = (read-from-string substring (item nextRoutineIndex RoutineTimes) 3 5)[
+      if hour = (read-from-string substring (item nextRoutineIndex RoutineTimes) 0 2) and minute = (read-from-string substring (item nextRoutineIndex RoutineTimes) 3 5)[ ;;; Si heure de la routine
         ;;;; Réveil
         if item nextRoutineIndex RoutineActions = "wake up"[
           ;;;;; Si dors actuellement, se réveiller
@@ -3047,9 +3083,9 @@ to userBehaviour
     ]
 
     ;;;; Si fatigué, va faire une sieste
-    ;if sleep < 10 and not any?(my-taskLinks with [action = "sleep"]) [
-    ;  let task createTask currentUser "sleep" one-of beds 2
-    ;]
+    if sleep < 10 and not any?(my-taskLinks with [action = "sleep" or action = "rest"]) [
+      let task createTask currentUser "rest" one-of beds 2
+    ]
 
 
     ;;;; TODO gestion Linge
