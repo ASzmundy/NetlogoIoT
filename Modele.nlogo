@@ -2345,11 +2345,11 @@ to userBehaviour
           set isEnRoute true
         ]
       ][
-        ;; Fait la tache en cours
+        ;; Si tache en cours
         ifelse isEnRoute[
-          ;;; Va vers la destination
+          ;;; Va vers la destination si pas encore arrivé
           goToNextPatchInCurrentPath 1 ;moveSpeed
-                                       ;;; Si arrivé à destination
+
           if patch-here = targetPatch[
             set isEnRoute false
             set current-path []
@@ -2961,7 +2961,17 @@ to userBehaviour
 
           ;;;; TODO Vaisselle si pas bcp dans placard
 
-          ;;;; TODO Faire les Courses
+          ;;;; Allumer l'appareil
+          ;;;; Cible = peu importe tant qu'il peut être activé
+          if currentTaskAction = "turn on"[
+            let taskTargetPatch nobody
+            ask currentTask[
+              ask other-end[
+                set isActive true
+              ]
+            ]
+            endTask currentUser nobody
+          ]
 
           ;;;; TODO Implémenter actions des tâches ici
 
@@ -3194,8 +3204,19 @@ to userBehaviour
       let task createTask currentUser "go to store" entranceDoor 1
     ]
 
+    ;;;; Si placard presque vide, allumer le lave-vaisselles
+    let isDishesNeed false
+    ask cupboards[
+     if dishesQuantity <= 1[
+       set isDishesNeed true
+      ]
+    ]
+    if isDishesNeed[
+      let task createTask currentUser "turn on" one-of dishwashers 1
+    ]
 
     ;;;; TODO gestion Linge
+
 
 
 
@@ -3281,6 +3302,11 @@ to objectsBehaviour
     ]
   ]
 
+  ;; Comportement lave-vaisselle
+  ask dishwashers with[isActive][
+    ;TODO
+  ]
+
   ;; Comportement lampes
   ask lights[
     ifelse isActive[
@@ -3290,9 +3316,74 @@ to objectsBehaviour
     ]
   ]
 
-  ;; TODO Comportement repas
+  ;; Comportement repas
   ask meals[
-
+    ;;; Vérification si dans frigo
+    let isInFridge false
+    let temperatureFridge 0
+    if any? my-in-containLinks with[is-dish? other-end][
+      ask one-of my-in-containLinks with[is-dish? other-end][
+        ask other-end[ ;;;; Dish
+          if any? my-in-containLinks with[is-fridge? other-end][
+            ask one-of my-in-containLinks with[is-fridge? other-end][ ;;;; Fridge
+              ask other-end[
+                if isActive[
+                  set isInFridge true
+                  set temperatureFridge temperature
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+    ifelse isInFridge[
+      ;;; Si dans frigo
+      ask my-in-containLinks with[is-fridge? other-end][
+       ask other-end[
+          set temperatureFridge temperature
+        ]
+      ]
+      ;;; une demi-heure pour refroidir à température frigo
+      if temperature > temperatureFridge[
+        set temperature temperature - ( temperatureFridge * temperature / (60 * 60 * 3))
+      ]
+      if temperature < temperatureFridge[
+        set temperature temperature + ( temperatureFridge * temperature / (60 * 60 * 3))
+      ]
+    ][
+      ;;; Si pas dans frigo
+      ;;; 3h pour refroidir à température pièce
+      ;;;; Salle de bain
+      ifelse pcolor = 84.9 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 84.9]))[
+        if temperature > temperatureBathroom[
+          set temperature temperature - ( temperatureBathroom * temperature / (60 * 60 * 3))
+        ]
+        if temperature < temperatureBathroom[
+          set temperature temperature + ( temperatureBathroom * temperature / (60 * 60 * 3))
+        ]
+      ][
+        ;;;; Entrée
+        ifelse pcolor = 64.7 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 64.7]))[
+          if temperature > temperatureEntrance[
+            set temperature temperature - ( temperatureEntrance * temperature / (60 * 60 * 3))
+          ]
+          if temperature < temperatureEntrance[
+            set temperature temperature + ( temperatureEntrance * temperature / (60 * 60 * 3))
+          ]
+        ][
+          ;;;; Pièce principale
+          if (pcolor = 126.3 or pcolor = 14.4 or pcolor = 44.4 ) or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 84.9]))[
+            if temperature > temperaturePrincipalRooms[
+              set temperature temperature - ( temperaturePrincipalRooms * temperature / (60 * 60 * 3))
+            ]
+            if temperature < temperaturePrincipalRooms[
+              set temperature temperature + ( temperaturePrincipalRooms * temperature / (60 * 60 * 3))
+            ]
+          ]
+        ]
+      ]
+    ]
   ]
 
   ;; Mise à jour quantités frigo
@@ -3311,18 +3402,20 @@ to objectsBehaviour
     set mealQuantity countMeals
   ]
 
+  ;; Mise à jour quantités placard
   ask cupboards[
     set dishesQuantity count my-containLinks with[is-dish? other-end]
   ]
 
+
 end
 
-; Comportement Capteurs
+; TODO Comportement Capteurs
 to sensorBehaviour
 
 end
 
-; Ecriture des données
+; TODO Ecriture des données
 to writeData
 
 end
