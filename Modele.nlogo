@@ -241,6 +241,7 @@ users-own[
   comfort
   health
   cleanliness
+  isSleeping
 
   ;;; Anniversaire
   age
@@ -1365,6 +1366,7 @@ to setupUser
       set comfort 100
       set health 100
       set cleanliness 100
+      set isSleeping false
 
       ;;; Anniversaire TODO VARIABILISER
       set age 21
@@ -2535,7 +2537,8 @@ to userBehaviour
             ]
 
             ;;;;; Dors
-            ifelse sleep < 99[
+            set isSleeping true
+            ifelse isSleeping and sleep < 99[
               ;;;;;; 9h de sommeil max
               set sleep sleep + ( 100 / (60 * 60 * 9) )
             ][
@@ -2543,6 +2546,7 @@ to userBehaviour
             ]
             if isFinished [
               ;;;;;; Si bien dormi
+              set isSleeping false
               endTask currentUser nobody
             ]
           ]
@@ -2843,7 +2847,92 @@ to userBehaviour
         ]
       ]
 
-    ]
+      ;;; Vérification si l'utilisateur dort
+      if currentTask != nobody[
+        let isOnBed false
+        if any?(beds-here)[set isOnBed true]
+        let isTaskSleeping false
+        ask currentTask[
+          if action = "sleep" and isOnBed[
+            set isTaskSleeping true
+          ]
+        ]
+        if isOnBed and isTaskSleeping[set isSleeping true]
+      ]
+      ifelse isSleeping[
+        set label "zzz"
+      ][
+        set label ""
+      ]
+
+      ;;;; Lumière
+      ;;;;; Salle de bain
+      ifelse pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))[
+        if luminosityBathroom = 0[
+          ask lights with[pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))]
+          [
+            set isActive true
+          ]
+        ]
+      ][
+        ask lights with[pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))]
+        [
+          set isActive false
+        ]
+      ]
+      ;;;;; Entrée
+      ifelse pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))[
+        if luminosityEntrance = 0[
+          ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))]
+          [
+            set isActive true
+          ]
+        ]
+      ][
+        ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))]
+        [
+          set isActive false
+        ]
+      ]
+      ;;;;; Chambre
+      ifelse pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and not isSleeping and luminosityPrincipalRooms = 0[
+        ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3]))][
+          set isActive true
+        ]
+      ][
+        ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3]))][
+          set isActive false
+        ]
+      ]
+      ;;;;; SàM
+      ifelse pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))[
+        if luminosityPrincipalRooms = 0[
+          ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))]
+          [
+            set isActive true
+          ]
+        ]
+      ][
+        ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))]
+        [
+          set isActive false
+        ]
+      ]
+      ;;;;; Cuisine
+      ifelse pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))[
+        if luminosityPrincipalRooms = 0[
+          ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))]
+          [
+            set isActive true
+          ]
+        ]
+      ][
+        ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))]
+        [
+          set isActive false
+        ]
+      ]
+    ] ;; FIN Si à la maison
     ;; Création des taches
     ;;; Routine
     if nextRoutineIndex >= 0[
@@ -2851,6 +2940,7 @@ to userBehaviour
         ;;;; Réveil
         if item nextRoutineIndex RoutineActions = "wake up"[
           ;;;;; Si dors actuellement, se réveiller
+          set isSleeping false
           if currentTask != nobody[
             ask currentTask[
               if action = "sleep"[
@@ -2917,23 +3007,6 @@ to userBehaviour
       ]
     ]
 
-    ;;; Vérification si l'utilisateur dort
-    let isSleeping false
-    if currentTask != nobody[
-      let isOnBed false
-      if any?(beds-here)[set isOnBed true]
-      ask currentTask[
-        if action = "sleep" and isOnBed[
-          set isSleeping true
-        ]
-      ]
-    ]
-    ifelse isSleeping[
-      set label "zzz"
-    ][
-      set label ""
-    ]
-
     ;;; Besoins dynamiques
     ;;;; Si a faim, va chercher un casse croute
     if hunger < 10 and not any?(my-taskLinks)[
@@ -2945,75 +3018,6 @@ to userBehaviour
     ;  let task createTask currentUser "sleep" one-of beds 2
     ;]
 
-    ;;;; Lumière
-    ;;;;; Salle de bain
-    ifelse pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))[
-      if luminosityBathroom = 0[
-        ask lights with[pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))]
-        [
-          set isActive true
-        ]
-      ]
-    ][
-      ask lights with[pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))]
-        [
-          set isActive false
-        ]
-    ]
-    ;;;;; Entrée
-    ifelse pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))[
-      if luminosityEntrance = 0[
-        ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))]
-        [
-          set isActive true
-        ]
-      ]
-    ][
-      ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))]
-        [
-          set isActive false
-        ]
-    ]
-    ;;;;; Chambre
-    ifelse pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and not isSleeping and luminosityPrincipalRooms = 0[
-        ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3]))][
-          set isActive true
-        ]
-    ][
-      ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3]))][
-          set isActive false
-        ]
-    ]
-    ;;;;; SàM
-    ifelse pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))[
-      if luminosityPrincipalRooms = 0[
-        ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))]
-        [
-          set isActive true
-        ]
-      ]
-    ][
-      ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))]
-        [
-          set isActive false
-        ]
-    ]
-    ;;;;; Cuisine
-    ifelse pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))[
-      if luminosityPrincipalRooms = 0[
-        ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))]
-        [
-          set isActive true
-        ]
-      ]
-    ][
-      ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))]
-        [
-          set isActive false
-        ]
-    ]
-
-    ;;;; TODO Volets
 
     ;;;; TODO gestion Linge
 
