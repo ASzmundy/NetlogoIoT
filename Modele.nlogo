@@ -1001,7 +1001,7 @@ to setupFurniture
 
       ;;;;; Ingrédients
       ask patch-here[
-        sprout-fruits 10[
+        sprout-fruits 5[
           set shape "apple"
           set size 0.5
           set color lime
@@ -1009,14 +1009,14 @@ to setupFurniture
           set freshness 100
           set quantity 100
         ]
-        sprout-vegetables 10[
+        sprout-vegetables 5[
           set shape "pumpkin"
           set size 0.5
           set color green
           set nutrition random (nutritionVegetableMax - nutritionVegetableMin) + nutritionVegetableMin
           set freshness 100
         ]
-        sprout-meats 10[
+        sprout-meats 5[
           set shape "bread"
           set size 0.5
           set color red
@@ -2244,6 +2244,13 @@ end
 to userBehaviour
   ask Users[
     let currentUser self
+    ;; Récupération du type de tâche en cours
+    let currentTaskAction nobody
+    if currentTask != nobody [
+      ask currentTask[
+        set currentTaskAction action
+      ]
+    ]
     ifelse isOutside[
       ;; Si est dehors
       if not hidden?[
@@ -2252,6 +2259,52 @@ to userBehaviour
       ;;; Mange dehors si a faim
       if hunger < 10[
         set hunger hunger + ( 30 + random (60 - 30) )
+      ]
+
+      ;; Gestion tâches dehors
+      ;;; Tâche faire les courses
+      ;;; Cible = porte d'entrée
+      if currentTaskAction = "go to store"[
+        let isFinished false
+        ask currentTask [
+          if time >= ( 60 * 60 )[ ;;;;; Durée 1H TODO Rendre variable
+            set isFinished true
+          ]
+        ]
+
+        if isFinished[
+          set isOutside false
+          ;;;;; Rentrer avec les courses
+          ask patch-here[
+            sprout-fruits 5[
+              set shape "apple"
+              set size 0.5
+              set color lime
+              set nutrition random (nutritionFruitMax - nutritionFruitMin) + nutritionFruitMin
+              set freshness 100
+              set quantity 100
+              take currentUser self
+            ]
+            sprout-vegetables 5[
+              set shape "pumpkin"
+              set size 0.5
+              set color green
+              set nutrition random (nutritionVegetableMax - nutritionVegetableMin) + nutritionVegetableMin
+              set freshness 100
+              take currentUser self
+            ]
+            sprout-meats 5[
+              set shape "bread"
+              set size 0.5
+              set color red
+              set nutrition random (nutritionMeatMax - nutritionMeatMin) + nutritionMeatMin
+              set freshness 100
+              take currentUser self
+            ]
+          ]
+          let nextTask createTask currentUser "store groceries" one-of fridges 1
+          endTask currentUser nextTask
+        ]
       ]
     ][;; Si est à la maison
       if hidden?[
@@ -2304,11 +2357,6 @@ to userBehaviour
         ][
           ;;; Si arrivé à destination
           ;;; Réalisation de l'action
-          ;;;; Récupération du type de tâche
-          let currentTaskAction nobody
-          ask currentTask[
-            set currentTaskAction action
-          ]
 
           ;;;; Tâche aller chercher un casse croute (Restes ou fruit)
           ;;;; Cible = frigo
@@ -2879,32 +2927,14 @@ to userBehaviour
             set isOutside true
           ]
 
-          ;;;; Tâche faire les courses
+          ;;;; Tâche sortir faire les courses
           ;;;; Cible = porte d'entrée
           if currentTaskAction = "go to store"[
-            ifelse isOutside[
-              ;;;;; Si dehors
-              let isFinished false
-              ask currentTask [
-                if time > ( 60 * 60 )[ ;;;;; Durée 1H TODO Rendre variable
-                  set isFinished true
-                ]
-              ]
-
-              if isFinished[
-                set isOutside false
-                ;;;;;; rentrer avec les courses
-                let nextTask createTask currentUser "store groceries" one-of fridges 1
-                endTask currentUser nextTask
-              ]
-            ][
-              ;;;;; Si pas encore sorti
-              ;;;;; Eteint les lumières de l'entrée
-              ask lights with[pcolor = 64.7 and isActive][
-                set isActive false
-              ]
-              set isOutside true
+            ;;;;; Eteint les lumières de l'entrée
+            ask lights with[pcolor = 64.7 and isActive][
+              set isActive false
             ]
+            set isOutside true
           ]
 
           ;;;; Tâche ranger les courses
@@ -2916,8 +2946,14 @@ to userBehaviour
                 set taskTargetPatch patch-here
               ]
             ]
-            ask my-carryLinks with[is-vegetable? other-end or is-meat? other-end or is-fruit? other-end or is-meal? other-end][
-              put currentUser other-end taskTargetPatch
+            ask fruits-here[
+              put currentUser self taskTargetPatch
+            ]
+            ask vegetables-here[
+              put currentUser self taskTargetPatch
+            ]
+            ask meats-here[
+              put currentUser self taskTargetPatch
             ]
             endTask currentUser nobody
           ]
@@ -2929,10 +2965,6 @@ to userBehaviour
 
           ;;;; TODO Implémenter actions des tâches ici
 
-          ;;;; Incrémentation temps tâche
-          if currentTask != nobody[
-            ask currentTask [set time time + 1]
-          ]
         ] ;;; FIN Définition tâches
       ]
 
@@ -3054,15 +3086,20 @@ to userBehaviour
         ]
       ]
 
-    ] ;; FIN Si à la maison
+    ] ;;; FIN Si à la maison
 
-    ;; Création de tâches
-    ;;; Routine
+    ;;; Incrémentation temps tâche
+    if currentTask != nobody[
+      ask currentTask [set time time + 1]
+    ]
+
+    ;;; Création de tâches
+    ;;;; Routine
     if nextRoutineIndex >= 0[
       if hour = (read-from-string substring (item nextRoutineIndex RoutineTimes) 0 2) and minute = (read-from-string substring (item nextRoutineIndex RoutineTimes) 3 5)[ ;;; Si heure de la routine
-        ;;;; Réveil
+        ;;;;; Réveil
         if item nextRoutineIndex RoutineActions = "wake up"[
-          ;;;;; Si dors actuellement, se réveiller
+          ;;;;;; Si dors actuellement, se réveiller
           set isSleeping false
           if currentTask != nobody[
             ask currentTask[
@@ -3071,45 +3108,45 @@ to userBehaviour
               ]
             ]
           ]
-          ;;;;; Annulation sleep
+          ;;;;;; Annulation sleep
           ask my-taskLinks with [action = "sleep"][
             die
           ]
         ]
 
-        ;;;; Aller au lit
+        ;;;;; Aller au lit
         if item nextRoutineIndex RoutineActions = "sleep" and not any?(my-taskLinks with [action = "sleep"])[
           let nextTask createTask currentUser "sleep" one-of beds 3
         ]
 
-        ;;;; Petit déjeuner
+        ;;;;; Petit déjeuner
         if item nextRoutineIndex RoutineActions = "breakfast" and not any?(my-taskLinks with [action = "get something to eat" or action = "get meal" or action = "eat fruit"])[
           let nextTask createTask currentUser "eat fruit" one-of fruits 3
         ]
 
-        ;;;; Déjeuner/Diner
+        ;;;;; Déjeuner/Diner
         if (item nextRoutineIndex RoutineActions = "lunch" or item nextRoutineIndex RoutineActions = "diner") and not any?(my-taskLinks with [action = "get something to eat" or action = "eat on table"])[
           let nextTask createTask currentUser "get meal" one-of fridges 3
         ]
 
-        ;;;; Prendre une douche
+        ;;;;; Prendre une douche
         if item nextRoutineIndex RoutineActions = "shower" and not any?(my-taskLinks with [action = "take shower"])[
           let nextTask createTask currentUser "take shower" one-of showers 3
         ]
 
-        ;;;; Aller dehors
+        ;;;;; Aller dehors
         if item nextRoutineIndex RoutineActions = "go outside" and not any?(my-taskLinks with [action = "go outside"]) and not isOutside[
           let entranceDoor one-of doors with[xcor = 0 or ycor = 0]
           let nextTask createTask currentUser "go outside" entranceDoor 3
         ]
 
-        ;;;; Faire les courses
+        ;;;;; Faire les courses
         if item nextRoutineIndex RoutineActions = "go to store" and not any?(my-taskLinks with [action = "go to store"]) and not isOutside[
           let entranceDoor one-of doors with[xcor = 0 or ycor = 0]
           let nextTask createTask currentUser "go to store" entranceDoor 3
         ]
 
-        ;;;; Rentrer à la maison
+        ;;;;; Rentrer à la maison
         if item nextRoutineIndex RoutineActions = "go back home" and isOutside[
           if isOutside[
             set isOutside false
@@ -3121,15 +3158,15 @@ to userBehaviour
               ]
             ]
           ]
-          ;;;;; Annulation sortie
+          ;;;;;; Annulation sortie
           ask my-taskLinks with [action = "go outside"][
             die
           ]
         ]
 
-        ;;;; TODO Ajouter prochaines actions routines ici (comme dans fichier)
+        ;;;;; TODO Ajouter prochaines actions routines ici (comme dans fichier)
 
-        ;;;; Récupération prochaine routine
+        ;;;;; Récupération prochaine routine
         set nextRoutineIndex nextRoutineIndex - 1
       ]
     ]
@@ -3143,6 +3180,18 @@ to userBehaviour
     ;;;; Si fatigué, va faire une sieste
     if sleep < 10 and not any?(my-taskLinks with [action = "sleep" or action = "rest"]) [
       let task createTask currentUser "rest" one-of beds 2
+    ]
+
+    ;;;; Si frigo presque vide, aller faire les courses
+    let isGroceriesNeed false
+    ask fridges[
+     if vegetablesQuantity <= 1 or fruitsQuantity <= 1 or meatQuantity <= 1[
+       set isGroceriesNeed true
+      ]
+    ]
+    if isGroceriesNeed and not any?(my-taskLinks)[
+      let entranceDoor one-of doors with[xcor = 0 or ycor = 0]
+      let task createTask currentUser "go to store" entranceDoor 1
     ]
 
 
