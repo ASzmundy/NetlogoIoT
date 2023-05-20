@@ -620,12 +620,12 @@ to setupLightOutside
     set isNight false
   ]
   ;;;; Si aube
-  if (time:is-after? currentDateTime datetimeSunrise and time:is-after? currentDateTime (time:plus datetimeSunrise -45 "minutes")) [
+  if (time:is-after? currentDateTime datetimeSunrise and time:is-before? currentDateTime (time:plus datetimeSunrise 45 "minutes")) [
     set luminosityOutside (time:difference-between datetimeSunrise currentDateTime "seconds") * (outsideMaxLuminosity / 2700)
     set isNight true
   ]
   ;;;; Si crépuscule
-  if (time:is-before? currentDateTime datetimeSunset and time:is-before? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
+  if (time:is-after? currentDateTime datetimeSunset and time:is-before? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
     set luminosityOutside outsideMaxLuminosity - (time:difference-between currentDateTime datetimeSunset "seconds") * (outsideMaxLuminosity / 2700)
     set isNight false
   ]
@@ -1671,10 +1671,7 @@ end
 ; Gestion du thermostat
 to thermostatManagement
   ;; Activation Chauffage
-  ;;;; Allumage chauffage Debug TODO Retirer
-
-  ;;;; Allumage/Extinction par thermostat
-  ;;;;; Entrée
+  ;;; Entrée
 
   ifelse temperatureEntrance < thermostat[
     ask heaters with [isActive = false and pcolor = 64.7][
@@ -1688,7 +1685,7 @@ to thermostatManagement
     ]
   ]
 
-  ;;;;; Pièces principales
+  ;;; Pièces principales
 
   ifelse temperaturePrincipalRooms < thermostat[
     ask heaters with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
@@ -1703,7 +1700,7 @@ to thermostatManagement
   ]
 
 
-  ;;;;; Salle de bain
+  ;;; Salle de bain
   ifelse temperatureBathroom < thermostat[
     ask heaters with [isActive = false and pcolor = 84.9][
       set isActive true
@@ -1718,8 +1715,7 @@ to thermostatManagement
 
 
   ;; Activation Climatisation
-  ;;; Allumage/Extinction par thermostat
-  ;;;; Pièces principales
+  ;;; Pièces principales
   ifelse temperaturePrincipalRooms > thermostat[
     ask ACs with [isActive = false and (pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3)][
       set isActive true
@@ -2124,13 +2120,15 @@ to put [inputUser inputObject inputDestinationPatch]
       ask bookcases-here[
         create-containLink-to inputObject
       ]
+      ask microwaves-here[
+        create-containLink-to inputObject
+      ]
     ]
   ]
 end
 ;; Prendre un objet
 to take [inputUser inputObject]
   ;;; Pour gérer cas meal/dish
-
   if inputObject != nobody[
     let parentObject nobody
     ask inputObject[
@@ -2153,31 +2151,60 @@ to-report createTask [inputUser inputAction inputTarget inputPriority]
   let createdTask nobody
   if inputTarget != nobody[
     ask inputUser[
+      ;;; Mettre fin à l'ancienne tâche si même cible
+      ask my-taskLinks[
+        if other-end = inputTarget[
+          endTask inputUser nobody
+        ]
+      ]
       create-taskLink-to inputTarget
       [
         set action inputAction
         set priority inputPriority
         set createdTask self
       ]
+    ]
+  ]
+  report createdTask
+end
+
+;; Fin de tâche
+to endTask [inputUser inputNextTask]
+  ask inputUser[
+    ;;; Met fin à la tâche actuelle et met la prochaine tâche
+    if currentTask != nobody[
+      ask currentTask[die]
+    ]
+    set currentTask inputNextTask
+
+    if inputNextTask != nobody[
+      ;;; Définition du nouveau patch cible
       let taskTargetPatch nobody
-      ask inputTarget[
-        set taskTargetPatch patch-here
+      ask inputNextTask[
+        ask other-end[
+          set taskTargetPatch patch-here
+        ]
       ]
-      ifelse taskTargetPatch != patch-here and not member? taskTargetPatch neighbors[
+      let realTargetPatch nobody
+      ifelse member? taskTargetPatch neighbors or taskTargetPatch = patch-here[
+        set realTargetPatch patch-here
+      ][
+        ask taskTargetPatch[
+          if pcolor = 23.3[
+            set realTargetPatch one-of neighbors with[pcolor != 0 and pcolor != 105 and pcolor != 23.3]
+          ]
+        ]
+      ]
+
+      ;;; Met le user en route si il faut se déplacer
+      set targetPatch realTargetPatch
+      ifelse realTargetPatch != patch-here[
         findShortestPathToDestination
         set isEnRoute true
       ][
         set isEnRoute false
       ]
     ]
-  ]
-  report createdTask
-end
-;; Fin de tâche
-to endTask [inputUser inputNextTask]
-  ask inputUser[
-    ask currentTask[die]
-    set currentTask inputNextTask
   ]
 end
 
@@ -2186,8 +2213,8 @@ end
 to userBehaviour
   ask Users[
     let currentUser self
+    ;; Si pas de tâche en cours
     ifelse currentTask = nobody[
-      ;; Si pas de tâche en cours
       if count my-taskLinks != 0[
         ;;; Récupération de la tâche la plus prioritaire
         ;;; TODO Interrompre tâche si tâche plus prioritaire apparait
@@ -2269,19 +2296,27 @@ to userBehaviour
 
         ;;;; Tâche poser un repas sur la table
         ;;;; Cible = Table
-        if currentTaskAction = "put meal on table"[ ;TOFIX N'arrive pas à mettre sur la table
+        if currentTaskAction = "put meal on table"[
           let tableToPut nobody
           let patchTableToPut nobody
           ask currentTask[
             set tableToPut other-end
-            ask other-end[
+            ask tableToPut[
               set patchTableToPut patch-here
             ]
           ]
+          let dishToEat nobody
+          let mealToEat nobody
           ask my-carryLinks with[is-dish? other-end][
-            put currentUser other-end patchTableToPut
+            set dishToEat other-end
           ]
-          let nextTask createTask currentUser "eat on table" tableToPut 1
+          ask dishToEat[
+            ask my-containLinks with[is-meal? other-end][
+              set mealToEat other-end
+            ]
+          ]
+          put currentUser dishToEat patchTableToPut
+          let nextTask createTask currentUser "eat on table" mealToEat 1
           endTask currentUser nextTask
         ]
 
@@ -2295,9 +2330,11 @@ to userBehaviour
               set patchToPut patch-here
             ]
           ]
+          let thingToPut nobody
           ask my-carryLinks[
-            put currentUser other-end patchToPut
+            set thingToPut other-end
           ]
+          put currentUser thingToPut patchToPut
           endTask currentUser nobody
         ]
 
@@ -2351,7 +2388,9 @@ to userBehaviour
             set currentMeal other-end
           ]
           ask currentMeal[
-            set currentDish other-end
+            ask my-in-containLinks with[is-dish? other-end][
+              set currentDish other-end
+            ]
           ]
           if hunger >= 100[
             set hunger 100
@@ -2364,7 +2403,7 @@ to userBehaviour
             ;;;;; Si déjà assis
             ifelse isStuffed[
               ;;;;; Si plus faim, met les restes au frigo
-              take currentUser currentMeal
+              take currentUser currentDish
               let nextTask createTask currentUser "put" one-of fridges 1
               endTask currentUser nextTask
             ][
@@ -2376,16 +2415,20 @@ to userBehaviour
                     set quantity quantity - ( 100 / (60 * 20) )
                     let nutritionTmp nutrition
                     ask currentUser[
-                      set hunger hunger + ( nutritionTmp / 60 )
+                      set hunger hunger + ( nutritionTmp / (60 * 20) )
                     ]
                   ][
                     ;;;;;;; Si repas entièrement mangé
-                    die
                     set isFinished true
+                    die
                   ]
                 ]
               ]
               if isFinished[
+                ask currentDish[
+                  set cleanliness 0 ; TODO Gestion saleté vaisselle
+                ]
+
                 ;;;;; Création tâche mettre au lave-vaisselles
                 take currentUser currentDish
                 let nextTask createTask currentUser "put" one-of dishwashers 1
@@ -2413,7 +2456,7 @@ to userBehaviour
           move-to whereToSit
           ;;;;; Fin de la tâche
           let nextTask nobody
-          if any?( meals-on neighbors)[
+          if any?(meals-on neighbors)[
             set nextTask createTask currentUser "eat on table" one-of meals-on neighbors 1
           ]
           endTask currentUser nextTask
@@ -2462,8 +2505,9 @@ to userBehaviour
               ;;;;;; Si restes dispo dans le frigo
               set isEatingLeftovers true
               ;;;;;;; Prendre le repas
-              ask one-of my-containLinks with[is-meal? other-end][
+              ask one-of my-containLinks with[is-dish? other-end][
                 ask other-end[
+                  set toEat self
                   take currentUser self
                 ]
               ]
@@ -2472,12 +2516,14 @@ to userBehaviour
               ;;;;;;; Prendre légume
               ask one-of my-containLinks with[is-vegetable? other-end][
                 ask other-end[
+                  set toEat self
                   take currentUser self
                 ]
               ]
               ;;;;;;; Prendre viande
               ask one-of my-containLinks with[is-meat? other-end][
                 ask other-end[
+                  set toEat self
                   take currentUser self
                 ]
               ]
@@ -2488,7 +2534,13 @@ to userBehaviour
           ifelse isEatingLeftovers[
             ;;;;;;; Faut-il réchauffer ce repas ?
             let isEatableColdTmp false
-            ask toEat [set isEatableColdTmp isEatableCold]
+            ask toEat [
+              ask my-containLinks with[is-meal? other-end][
+                ask other-end[
+                  set isEatableColdTmp isEatableCold
+                ]
+              ]
+            ]
             ifelse isEatableColdTmp[
               ;;;;;;; Si mangable froid, aller à table
               set nextTask createTask currentUser "put meal on table" one-of tables with[any?(chairs-on neighbors)] 1
@@ -2508,37 +2560,37 @@ to userBehaviour
         ;;;; Cible = micro ondes
         if currentTaskAction = "warm up food"[
           let targetMicrowave nobody
+          let targetMicrowavePatch nobody
           ask currentTask[
             set targetMicrowave other-end
           ]
           let isCurrentlyWarmingUp false
-          ask targetMicrowave [set isCurrentlyWarmingUp isActive]
+          ask targetMicrowave [
+            set isCurrentlyWarmingUp isActive
+            set targetMicrowavePatch patch-here
+          ]
 
           ;;;;; Si micro-ondes pas encore activé
           if not isCurrentlyWarmingUp[
-            ifelse any? my-carryLinks with[is-meal? other-end][
+            ifelse any? my-carryLinks with[is-dish? other-end][
               let foodToWarmUp nobody
               ;;;;;; Si pas encore mis dans le micro-ondes
               ;;;;;;; Mettre dans le micro-ondes
-              ask my-carryLinks with[is-meal? other-end][
+              ask my-carryLinks with[is-dish? other-end][
                 set foodToWarmUp other-end
-                ask foodToWarmUp[
-                  move-to targetMicrowave
-                ]
-                die
               ]
+              put currentUser foodToWarmUp targetMicrowavePatch
               ;;;;;;; Allumer le micro-ondes
               ask targetMicrowave [
-                create-containLink-to foodToWarmUp
                 set isActive true
-                set timeLeft 120 ;;;;;; 120
+                set timeLeft 60 * 3
               ]
             ][
               ;;;;;; Si fini
               ;;;;;; Prendre le repas et le mettre sur la table
               let mealToEat nobody
               ask targetMicrowave[
-                ask one-of my-containLinks[
+                ask one-of my-containLinks with[is-dish? other-end][
                   set mealToEat other-end
                 ]
               ]
@@ -2834,7 +2886,7 @@ to objectsBehaviour
     move-to containedBy
   ]
 
-  ;; TODO Comportement plaque chauffante
+  ;; Comportement plaque chauffante
   ask hotplates[
     ifelse isActive[
       if color != red[set color red]
@@ -2850,6 +2902,25 @@ to objectsBehaviour
     ]
   ]
 
+  ;; Comportement micro-ondes
+  ask microwaves with[isActive][
+    ;;; Chauffe repas
+    ask my-containLinks with[is-dish? other-end][
+      ask other-end[
+        ask my-containLinks with[is-meal? other-end][
+          ask other-end[
+            set temperature temperature + (200 / (60 * 3))
+          ]
+        ]
+      ]
+    ]
+    set timeleft timeleft - 1
+    if timeleft <= 0 [
+      set timeleft 0
+      set isActive false
+    ]
+  ]
+
   ;; TODO Comportement repas
   ask meals[
 
@@ -2860,7 +2931,15 @@ to objectsBehaviour
     set fruitsQuantity count my-containLinks with[is-fruit? other-end]
     set vegetablesQuantity count my-containLinks with[is-vegetable? other-end]
     set meatQuantity count my-containLinks with[is-meat? other-end]
-    set mealQuantity count my-containLinks with[is-meal? other-end]
+    let countMeals 0
+    ask my-containLinks with[is-dish? other-end][
+      ask other-end[
+        ask my-containLinks with[is-meal? other-end][
+          set countMeals countMeals + 1
+        ]
+      ]
+    ]
+    set mealQuantity countMeals
   ]
 
   ask cupboards[
@@ -3687,6 +3766,23 @@ TEXTBOX
 NIL
 11
 0.0
+1
+
+BUTTON
+105
+58
+168
+91
+NIL
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
 1
 
 @#$#@#$#@
