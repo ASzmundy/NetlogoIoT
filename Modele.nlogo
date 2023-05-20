@@ -2867,7 +2867,7 @@ to userBehaviour
 
       ;;;; Lumière
       ;;;;; Salle de bain
-      ifelse pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))[
+      ifelse pcolor = 84.9 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 84.9]))[
         if luminosityBathroom = 0[
           ask lights with[pcolor = 84.9 or (pcolor = 23.3 and any?(neighbors with[pcolor = 84.9]))]
           [
@@ -2880,12 +2880,20 @@ to userBehaviour
           set isActive false
         ]
       ]
+
       ;;;;; Entrée
-      ifelse pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))[
-        if luminosityEntrance = 0[
+      ifelse pcolor = 64.7 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 64.7]))[
+        ifelse luminosityEntrance = 0[
           ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7]))]
           [
             set isActive true
+          ]
+        ][
+          ;;;;;; Si il fait clair, éteindre les lumières
+          if luminosityEntrance = luminosityOutside[
+            ask lights with[pcolor = 64.7 or (pcolor = 23.3 and any?(neighbors with[pcolor = 64.7])) and isActive][
+              set isActive false
+            ]
           ]
         ]
       ][
@@ -2894,22 +2902,39 @@ to userBehaviour
           set isActive false
         ]
       ]
+
       ;;;;; Chambre
-      ifelse pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and not isSleeping and luminosityPrincipalRooms = 0[
-        ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3]))][
-          set isActive true
+      ifelse pcolor = 126.3 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 126.3])) and not isSleeping[
+        ifelse luminosityPrincipalRooms = 0[
+          ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and not isActive][
+            set isActive true
+          ]
+        ][
+          ;;;;;; Si il fait clair, éteindre les lumières
+          if luminosityPrincipalRooms = luminosityOutside[
+            ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and isActive][
+              set isActive false
+            ]
+          ]
         ]
       ][
-        ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3]))][
+        ask lights with[pcolor = 126.3 or (pcolor = 23.3 and any?(neighbors with[pcolor = 126.3])) and isActive][
           set isActive false
         ]
       ]
       ;;;;; SàM
-      ifelse pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))[
-        if luminosityPrincipalRooms = 0[
+      ifelse pcolor = 14.4 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 14.4]))[
+        ifelse luminosityPrincipalRooms = 0[
           ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4]))]
           [
             set isActive true
+          ]
+        ][
+          ;;;;;; Si il fait clair, éteindre les lumières
+          if luminosityPrincipalRooms = luminosityOutside[
+            ask lights with[pcolor = 14.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 14.4])) and isActive][
+              set isActive false
+            ]
           ]
         ]
       ][
@@ -2920,10 +2945,17 @@ to userBehaviour
       ]
       ;;;;; Cuisine
       ifelse pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))[
-        if luminosityPrincipalRooms = 0[
+        ifelse luminosityPrincipalRooms = 0[
           ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4]))]
           [
             set isActive true
+          ]
+        ][
+          ;;;;;; Si il fait clair, éteindre les lumières
+          if luminosityPrincipalRooms = luminosityOutside[
+            ask lights with[pcolor = 44.4 or (pcolor = 23.3 and any?(neighbors with[pcolor = 44.4])) and isActive][
+              set isActive false
+            ]
           ]
         ]
       ][
@@ -2933,7 +2965,8 @@ to userBehaviour
         ]
       ]
     ] ;; FIN Si à la maison
-    ;; Création des taches
+
+    ;; Création de tâches
     ;;; Routine
     if nextRoutineIndex >= 0[
       if hour = (read-from-string substring (item nextRoutineIndex RoutineTimes) 0 2) and minute = (read-from-string substring (item nextRoutineIndex RoutineTimes) 3 5)[
