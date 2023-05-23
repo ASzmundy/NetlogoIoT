@@ -131,8 +131,8 @@ laundryBaskets-own [laundryQuantity]
 breed [microwaves microwave]
 microwaves-own [power timeLeft isActive]
 
-breed [bookcases bookcase]
-bookcases-own [bookQuantity]
+breed [bookshelfs bookshelf]
+bookshelfs-own [bookQuantity]
 
 
 ;;; Salle à manger
@@ -497,10 +497,15 @@ to setupDate
   set month time:get "month" tmpDatetime
   set day time:get "day" tmpDatetime
   set weekday time:get "dayofweek" tmpDatetime
+
   ;;;; Conversion 12h vers 24
-  if substring datetimeString 13 15 = "PM" and (substring datetimeString 0 2 != "12") [
+  if substring datetimeString 13 15 = "PM" and (substring datetimeString 0 2 != "12")[
     set tmpDatetime time:plus tmpDatetime 12 "hours"
   ]
+  if substring datetimeString 13 15 = "AM" and (substring datetimeString 0 2 = "12")[
+    set tmpDatetime time:plus tmpDatetime -12 "hours"
+  ]
+
   set hour time:get "hour" tmpDatetime
   set minute time:get "minute" tmpDatetime
   set second time:get "second" tmpDatetime
@@ -529,7 +534,7 @@ to setupRoutine [inputWeekDay inputHour inputMinutes]
   ;;; Récupération de la prochaine action de routine
   let i 0
   let isFinished false
-  while[i < length routineTimes and not isFinished][;6
+  while[i < length routineTimes - 1 and not isFinished][
     let nextroutineTimeString item (i + 1) routineTimes
     let nextRoutineTimeHour read-from-string(substring nextroutineTimeString 0 2)
     let nextRoutineTimeMinute read-from-string (substring nextroutineTimeString 3 5)
@@ -549,6 +554,7 @@ end
 to setupTemperature
   ;;;; Choix de la température de la journée en fonction de la saison
   ;;;; TODO Améliorer le choix de la température de la journée pour la faire varier un peu plus
+
   if season = "Winter" [
     set targetTemperatureOutsideMin minTemperatureWinter + (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
     set targetTemperatureOutsideMax maxTemperatureWinter - (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
@@ -742,6 +748,23 @@ to setupFurniture
     ]
   ]
 
+  ;;;; Bibliothèque
+  ask patches with [pxcor = 14 and pycor = 9] [
+    sprout-bookshelfs 1
+    [
+      set shape "container"
+      set color brown
+      set bookQuantity 10
+      ask patch-here[
+        sprout-books 10[
+          set shape "book"
+          set size 0.5
+        ]
+      ]
+      create-containLinks-to books-here
+    ]
+  ]
+
   ;; Meubles CONNECTES
   ;;; SDB
   ;;;; Douche
@@ -843,7 +866,7 @@ to setupFurniture
       set shape "tooth"
       set color black
       set coffeeCapacity 0
-      set waterCapacity 100
+      set waterCapacity 100 ; TODO Gestion eau
       set coffeeTemperature 0
       set isActive false
     ]
@@ -1050,15 +1073,6 @@ to setupFurniture
       set power 0
       set timeLeft 0
       set isActive false
-    ]
-  ]
-  ;;;; Bibliothèque
-  ask patches with [pxcor = 14 and pycor = 9] [
-    sprout-bookcases 1
-    [
-      set shape "container"
-      set color brown
-      set bookQuantity 10
     ]
   ]
 
@@ -2144,13 +2158,16 @@ to put [inputUser inputObject inputDestinationPatch]
       ask laundryBaskets-here[
         create-containLink-to inputObject
       ]
-      ask bookcases-here[
+      ask bookshelfs-here[
         create-containLink-to inputObject
       ]
       ask microwaves-here[
         create-containLink-to inputObject
       ]
       ask cupboards-here[
+        create-containLink-to inputObject
+      ]
+      ask coffeemakers-here[
         create-containLink-to inputObject
       ]
     ]
@@ -2200,6 +2217,9 @@ to-report createTask [inputUser inputAction inputTarget inputPriority]
   ]
   report createdTask
 end
+
+;; Réalisation action tâche
+;; TODO
 
 ;; Fin de tâche
 to endTask [inputUser inputNextTask]
@@ -2435,7 +2455,7 @@ to userBehaviour
 
 
           ;;;; Tâche poser quelque chose
-          ;;;; Cible = Patch
+          ;;;; Cible = Turtle
           if currentTaskAction = "put"[
             let patchToPut nobody
             ask currentTask[
@@ -2991,6 +3011,203 @@ to userBehaviour
             endTask currentUser nobody
           ]
 
+          ;;;; TOTEST Tâche lire un livre
+          ;;;; Cible = bibliothèque OU chaise OU lit
+          if currentTaskAction = "read book"[
+            let taskTarget nobody
+            ask currentTask[
+              set taskTarget other-end
+            ]
+
+            ;;;;; Si cible = bibliothèque
+            if is-bookshelf? taskTarget[
+              ;;;;;; Prendre un livre et aller s'assoir sur une chaise ou un lit
+              let bookToTake nobody
+              ask taskTarget[
+                ask one-of my-containLinks with[is-book? other-end][
+                  set bookToTake other-end
+                ]
+              ]
+              take currentUser bookToTake
+
+              let thingToSitTo min-one-of chairs [distance myself]
+              let distanceToChair distance thingToSitTo
+
+              if distanceToChair > distance min-one-of beds [distance myself][
+                set thingToSitTo min-one-of beds [distance myself]
+              ]
+
+              let nextTask createTask currentUser "sit" thingToSitTo 1
+              endTask currentUser nextTask
+              set nextTask createTask currentUser "read book" thingToSitTo 1
+            ]
+
+            ;;;;; Si cible = chaise ou lit
+            if is-chair? taskTarget or is-bed? taskTarget[
+              ;;;;;; Lire le livre (ne fait rien quoi) si pas d'autre tâche
+              ;;;;;; Remettre le livre dès qu'il y a une nouvelle tâche
+              if any?(my-taskLinks with[action != "read book"])[
+                let nextTask createTask currentUser "put" one-of bookshelfs 1
+                endTask currentUser nextTask
+              ]
+            ]
+          ]
+
+          ;;;; TOTEST Tâche prendre un café
+          ;;;; Cible = cafetière
+          if currentTaskAction = "take coffee"[
+            let taskTarget nobody
+            let isDishOnCoffeeMaker false
+            ask currentTask[
+              set taskTarget other-end
+              ;;;;; Vérifie si il y a un dish dans la cafetière
+              if any?([my-containLinks with[is-dish? other-end]] of other-end)[
+                set isDishOnCoffeeMaker true
+              ]
+            ]
+
+            ifelse isDishOnCoffeeMaker[
+              ;;;;; Si dish sur cafetière
+              ;;;;;; Vérification si café prêt
+              let isCoffeeReady false
+              ask taskTarget[
+                if coffeeCapacity > 100 / 25[
+                  set isCoffeeReady true
+                ]
+              ]
+
+              ;;;;;; Si café prêt, se servir le café puis le prendre et aller le boire
+              ifelse isCoffeeReady[
+                let isCoffeePoured false
+                ;;;;;;; Versement du café dans le dish
+                ask taskTarget[
+                  let coffeeMakerWaterTemperature coffeeTemperature
+                  ask my-containLinks with[is-dish? other-end][
+                    ask other-end[
+                      ifelse any?(my-containLinks with[is-coffee? other-end])[
+                        ;;;;;;;; Si café déjà présent, augmenter quantity
+                        ask my-containLinks with[is-coffee? other-end][
+                          ask other-end[
+                            set quantity quantity + 100 / 5
+                            ;;;;;;;;; Fin si café 100%
+                            if quantity >= 100[
+                              set quantity 100
+                              set isCoffeePoured true
+                            ]
+                            if temperature < coffeeMakerWaterTemperature[
+                              set temperature coffeeMakerWaterTemperature
+                            ]
+                          ]
+                        ]
+                      ][
+                        ;;;;;;;; Sinon créer café
+                        ask patch-here[
+                          sprout-coffees 1[
+                            set shape "drop"
+                            set color brown
+                            set size 0.4
+                            set quantity 100 / 5
+                            set temperature coffeeMakerWaterTemperature
+                          ]
+                        ]
+                        set cleanliness 0
+                        create-containLinks-to coffees-here
+                      ]
+                    ]
+                  ]
+                  set coffeeCapacity coffeeCapacity - 100 / 25 ;;;;;;; Une cafetière = 5 versements
+                ]
+                ;;;;;;; Aller boire le café une fois versé
+                if isCoffeePoured[
+                  let dishToTake nobody
+                  let coffeeToDrink nobody
+                  ask taskTarget[
+                    ask my-containLinks with[is-dish? other-end][
+                      ask other-end[
+                        set dishToTake self
+                        ask my-containLinks with[is-coffee? other-end][
+                          ask other-end[
+                            set coffeeToDrink self
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                  let nextTask createTask currentUser "take" dishToTake 1
+                  endTask currentUser nextTask
+                  set nextTask createTask currentUser "drink coffee" coffeeToDrink 1
+                ]
+              ][
+                ;;;;;; Allume la cafetière si café pas prêt et cafetière pas encore allumée
+                ask taskTarget[
+                  if not isActive[
+                    set isActive true
+                  ]
+                ]
+              ]
+            ][
+              ;;;;; Va chercher un dish propre et vide si il n'en a pas
+              ifelse not any?(my-carryLinks with[is-dish? other-end and [cleanliness] of other-end = 100 and not any?([my-containLinks] of other-end)])[
+                let nextTask createTask currentUser "take" one-of dishes with[cleanliness = 100] 1
+                endTask currentUser nextTask
+                set nextTask createTask currentUser "take coffee" taskTarget 1
+              ][
+                ;;;;; Si tient un dish propre et vide, le mettre dans la cafetière
+                let thingToPut nobody
+                ask my-carryLinks with[is-dish? other-end and [cleanliness] of other-end = 100 and not any?([my-containLinks] of other-end)][
+                  set thingToPut other-end
+                ]
+                let taskTargetPatch nobody
+                ask taskTarget[
+                  set taskTargetPatch patch-here
+                ]
+                put currentUser thingToPut taskTargetPatch
+              ]
+            ]
+          ]
+
+          ;;;; Tâche boire café
+          ;;;; Cible = café
+          if currentTaskAction = "drink coffee"[
+            let taskTarget nobody
+            ask currentTask[
+              set taskTarget other-end
+            ]
+
+            ;;;;; Si pas assis
+            ifelse not any?(chairs-here)[
+              ;;;;;; Va s'assoir
+              let nextTask createTask currentUser "sit" one-of chairs 1
+              endTask currentUser nextTask
+              set nextTask createTask currentUser "drink coffee" taskTarget 1
+            ][
+              ;;;;; Si assis
+              let dishOfCoffee nobody
+              let isFinished false
+              ask taskTarget[
+                ifelse quantity <= 0[
+                  set quantity 0
+                  set isFinished true
+                  ask my-in-containLinks[
+                    set dishOfCoffee other-end
+                  ]
+                  die
+                ][
+                  ;;;;;; Bois le café si il en reste
+                  set quantity quantity - (100 / (60 * 3))
+                  ask currentUser[
+                    set sleep sleep + (10 / (60 * 3))
+                  ]
+                ]
+              ]
+              if isFinished[
+                ;;;;;; Va mettre le dish au lave vaisselle si fini
+                let nextTask createTask currentUser "put" one-of dishwashers 1
+                endTask currentUser nextTask
+              ]
+            ]
+          ]
+
           ;;;; TODO Implémenter actions des tâches ici
 
         ] ;;; FIN Définition tâches
@@ -3191,6 +3408,16 @@ to userBehaviour
           ]
         ]
 
+        ;;;;; Lire livre
+        if item nextRoutineIndex RoutineActions = "read book" and not any?(my-taskLinks with[action = "read book"]) and not isSleeping[
+          let nextTask createTask currentUser "read book" one-of bookshelfs with[bookQuantity > 0] 4
+        ]
+
+        ;;;; Prendre un café
+        if item nextRoutineIndex RoutineActions = "take coffee" and not any?(my-taskLinks with[action = "take coffee"])[
+          let nextTask createTask currentUser "take coffee" one-of coffeeMakers 4
+        ]
+
         ;;;;; TODO Ajouter prochaines actions routines ici (comme dans fichier)
 
         ;;;;; Récupération prochaine routine
@@ -3198,20 +3425,20 @@ to userBehaviour
       ]
     ]
 
-    ;;; Besoins dynamiques
-    ;;;; Si a faim, va chercher un casse croute
+    ;;;; Besoins dynamiques
+    ;;;;; Si a faim, va chercher un casse croute
     if hunger < 10 and not any?(my-taskLinks)[
       let task createTask currentUser "get something to eat" one-of fridges with[any?(my-containLinks with[is-fruit? other-end])] 3
     ]
 
-    ;;;; Si fatigué et pas bientôt l'heure de se coucher, va faire une sieste
+    ;;;;; Si fatigué et pas bientôt l'heure de se coucher, va faire une sieste
     if nextRoutineIndex != -1[
       if sleep < 10 and not any?(my-taskLinks with [action = "sleep" or action = "rest"]) and item nextRoutineIndex routineActions != "sleep"[
         let task createTask currentUser "rest" one-of beds 3
       ]
     ]
 
-    ;;;; Si frigo presque vide, aller faire les courses
+    ;;;;; Si frigo presque vide, aller faire les courses
     let isGroceriesNeed false
     ask fridges[
      if vegetablesQuantity <= 1 or fruitsQuantity <= 1 or meatQuantity <= 1[
@@ -3223,7 +3450,7 @@ to userBehaviour
       let task createTask currentUser "go to store" entranceDoor 3
     ]
 
-    ;;;; Si placard presque vide, allumer le lave-vaisselle si necessaire (contient au moins une vaisselle sale et pas de vaisselle propre)
+    ;;;;; Si placard presque vide, allumer le lave-vaisselle si necessaire (contient au moins une vaisselle sale et pas de vaisselle propre)
 
     let isDishesNeed false
     ask cupboards[
@@ -3235,7 +3462,7 @@ to userBehaviour
       let task createTask currentUser "turn on" one-of dishwashers with [isActive = false and not any?(my-containLinks with[is-dish? other-end and [cleanliness] of other-end = 100]) and any?(my-containLinks with[is-dish? other-end and [cleanliness] of other-end = 0])] 4
     ]
 
-    ;;;; Si lave vaisselle fini de laver, ranger la vaisselle propre et mettre la vaisselle sale
+    ;;;;; Si lave vaisselle fini de laver, ranger la vaisselle propre et mettre la vaisselle sale
     let isDishwasherFinished false
     ask dishwashers with [isActive = false and any?(my-containLinks with [is-dish? other-end])][
       ask my-containLinks with [is-dish? other-end][
@@ -3257,9 +3484,7 @@ to userBehaviour
       ]
     ]
 
-    ;;;; TODO gestion Linge
-
-    ;;;; TODO Routine prendre un café
+    ;;;;; TODO gestion Linge
 
 
     ;;; Dégradation besoins
@@ -3358,12 +3583,16 @@ to objectsBehaviour
     ][
       set dirtLevel 0
     ]
+
+    ;;;; Gestion température eau
+    ifelse waterTemperature >= temperaturePrincipalRooms[
+      set waterLevel waterLevel - ((waterTemperature - temperaturePrincipalRooms) * 100 / (60 * 60 * 2 ) ) ;;;;; 2h pour refroidir
+    ][
+      set waterLevel waterLevel + ((temperaturePrincipalRooms - waterTemperature) * 100 / (60 * 60 * 2 ) )
+    ]
+
     ;;; Fonctionnement
     if isActive[
-      ;;;; Gestion température eau
-      if waterTemperature > temperaturePrincipalRooms[
-        set waterLevel waterLevel - (waterTemperature / (60 * 60 * 2 ) ) ;;;;; 2h pour refroidir
-      ]
 
       ;;;; Si allumé
       if timeleft = 0[
@@ -3409,6 +3638,41 @@ to objectsBehaviour
     ]
   ]
 
+  ;; Comportement machine à café
+  ask coffeeMakers[
+    ;;; Gestion température café/eau
+      ifelse coffeeTemperature >= temperaturePrincipalRooms[
+        set coffeeTemperature coffeeTemperature - ( (coffeeTemperature - temperaturePrincipalRooms) * 100 / (60 * 60))
+      ][
+        set coffeeTemperature coffeeTemperature + ( (temperaturePrincipalRooms - coffeeTemperature) * 100 / (60 * 60))
+      ]
+
+    if isActive[
+      let isFinished false
+
+      ifelse coffeeTemperature < 90[
+        ;;; Chauffer eau
+        set coffeeTemperature coffeeTemperature + 100 / 15
+      ][
+        ;;; Remplissage cafetière
+        ifelse waterCapacity > 0[
+          set waterCapacity waterCapacity - 100 / 60
+          if waterCapacity < 0 [set waterCapacity 0]
+          set coffeeCapacity coffeeCapacity + 100 / 60
+          if coffeeCapacity > 100 [set coffeeCapacity 100]
+        ][
+          set isFinished true
+        ]
+      ]
+      ;;; Extinction une fois fini
+      if isFinished[
+        set isActive false
+      ]
+    ]
+  ]
+
+
+
   ;; Comportement lampes
   ask lights[
     ifelse isActive[
@@ -3448,10 +3712,10 @@ to objectsBehaviour
       ]
       ;;; une demi-heure pour refroidir à température frigo
       if temperature > temperatureFridge[
-        set temperature temperature - ( temperatureFridge * temperature / (60 * 30))
+        set temperature temperature - ( (temperature - temperatureFridge) / (60 * 30))
       ]
       if temperature < temperatureFridge[
-        set temperature temperature + ( temperatureFridge * temperature / (60 * 30))
+        set temperature temperature + ((temperatureFridge - temperature) / (60 * 30))
       ]
     ][
       ;;; Si pas dans frigo
@@ -3486,6 +3750,11 @@ to objectsBehaviour
         ]
       ]
     ]
+  ]
+
+  ;; Comportement café
+  ask coffees[
+
   ]
 
   ;; Mise à jour quantités frigo
@@ -4361,10 +4630,10 @@ routineTimes
 11
 
 MONITOR
-156
-558
-462
-603
+171
+557
+582
+602
 NIL
 routineActions
 17
@@ -4372,10 +4641,10 @@ routineActions
 11
 
 MONITOR
-470
-536
-583
-581
+465
+509
+578
+554
 NIL
 nextRoutineIndex
 17
@@ -4453,6 +4722,21 @@ Rectangle -7500403 true true 240 150 270 210
 Rectangle -7500403 true true 60 180 75 195
 Rectangle -1 true false 75 105 105 150
 Rectangle -2674135 true false 105 105 270 150
+
+book
+false
+0
+Polygon -7500403 true true 30 195 150 255 270 135 150 75
+Polygon -7500403 true true 30 135 150 195 270 75 150 15
+Polygon -7500403 true true 30 135 30 195 90 150
+Polygon -1 true false 39 139 39 184 151 239 156 199
+Polygon -1 true false 151 239 254 135 254 90 151 197
+Line -7500403 true 150 196 150 247
+Line -7500403 true 43 159 138 207
+Line -7500403 true 43 174 138 222
+Line -7500403 true 153 206 248 113
+Line -7500403 true 153 221 248 128
+Polygon -1 true false 159 52 144 67 204 97 219 82
 
 bottle
 false
