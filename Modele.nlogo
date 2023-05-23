@@ -120,7 +120,7 @@ breed [ovens oven]
 ovens-own [cookingMethod power temperature timeLeft isActive]
 
 breed [dishwashers dishwasher]
-dishwashers-own [cycleMode timeLeft pastillesQuantity waterTemperature dirtLevel isActive]
+dishwashers-own [cycleMode timeLeft pastillesQuantity waterTemperature waterLevel dirtLevel isActive]
 
 breed [fridges fridge]
 fridges-own [temperature isDoorOpen fruitsQuantity vegetablesQuantity meatQuantity mealQuantity isActive]
@@ -620,7 +620,7 @@ to setupLightOutside
     set isNight true
   ]
   ;;;; Si après lever soleil ou avant coucher soleil alors jour
-  if (time:is-after? currentDateTime (time:plus (time:plus datetimeSunrise 1 "days") 45 "minutes") or time:is-before? currentDateTime (time:plus datetimeSunset -45 "minutes")) [
+  if (time:is-after? currentDateTime (time:plus (time:plus datetimeSunrise 1 "days") 45 "minutes") or time:is-before? currentDateTime (time:plus datetimeSunset 45 "minutes")) [
     set luminosityOutside outsideMaxLuminosity
     set isNight false
   ]
@@ -810,6 +810,30 @@ to setupFurniture
       ]
     ]
   ]
+  ;;;; Lave-linge
+  ask patches with [pxcor = 2 and pycor = 6] [
+    sprout-washingMachines 1
+    [
+      set shape "washingmachine"
+      set heading 0
+      set color black
+      set dirtDegree 0
+      set laundryWeight 0
+      set isActive false
+    ]
+  ]
+  ;;;; Sèche-linge
+  ask patches with [pxcor = 4 and pycor = 6] [
+    sprout-dryers 1
+    [
+      set shape "square"
+      set heading 0
+      set color white
+      set temperature 0
+      set humidity 0
+      set laundryWeight 0
+      set isActive false
+    ]
 
   ;;; Cuisine
   ;;;; Cafetiere
@@ -879,30 +903,6 @@ to setupFurniture
       set isActive false
     ]
   ]
-  ;;;; Lave-linge
-  ask patches with [pxcor = 2 and pycor = 6] [
-    sprout-washingMachines 1
-    [
-      set shape "lavelinge"
-      set heading 0
-      set color black
-      set dirtDegree 0
-      set laundryWeight 0
-      set isActive false
-    ]
-  ]
-  ;;;; Sèche-linge
-  ask patches with [pxcor = 4 and pycor = 6] [
-    sprout-dryers 1
-    [
-      set shape "square"
-      set heading 0
-      set color white
-      set temperature 0
-      set humidity 0
-      set laundryWeight 0
-      set isActive false
-    ]
     ;;;;; Gestion temperature
     if any?(neighbors with [pcolor = 84.9])[
       ask dryers-here[
@@ -920,6 +920,7 @@ to setupFurniture
       ]
     ]
   ]
+
   ;;;; Four
   ask patches with [pxcor = 12 and pycor = 6] [
     sprout-ovens 1
@@ -951,7 +952,6 @@ to setupFurniture
     ]
   ]
 
-
   ;;;; Lave-vaisselle
   ask patches with [pxcor = 16 and pycor = 8] [
     sprout-dishwashers 1
@@ -959,10 +959,11 @@ to setupFurniture
       set shape "square"
       set heading 0
       set color cyan
-      set cycleMode "Rincage" ;;;;; Peut être "Lavage","Rincage" et "Séchage"
+      set cycleMode "fill" ;;;;; Peut être "fill","rinse" et "dry"
       set timeLeft 0
       set pastillesQuantity 5
       set waterTemperature 0
+      set waterLevel 0
       set dirtLevel 0
       set isActive false
     ]
@@ -1441,6 +1442,7 @@ end
 to setup
   clear-all
   reset-ticks
+  stop-inspecting-dead-agents
 
   ;; Initialisation variables globales
   ;;; Date et saison actuelle
@@ -2148,6 +2150,9 @@ to put [inputUser inputObject inputDestinationPatch]
       ask microwaves-here[
         create-containLink-to inputObject
       ]
+      ask cupboards-here[
+        create-containLink-to inputObject
+      ]
     ]
   ]
 end
@@ -2176,9 +2181,9 @@ to-report createTask [inputUser inputAction inputTarget inputPriority]
   let createdTask nobody
   if inputTarget != nobody[
     ask inputUser[
-      ;;; Mettre fin à l'ancienne tâche si même cible
+      ;;; Mettre fin à l'ancienne tâche si même cible et même tâche
       ask my-taskLinks[
-        if other-end = inputTarget[
+        if other-end = inputTarget and action = inputAction [
           endTask inputUser nobody
         ]
       ]
@@ -2430,7 +2435,7 @@ to userBehaviour
 
 
           ;;;; Tâche poser quelque chose
-          ;;;; Cible = Table
+          ;;;; Cible = Patch
           if currentTaskAction = "put"[
             let patchToPut nobody
             ask currentTask[
@@ -2441,8 +2446,23 @@ to userBehaviour
             let thingToPut nobody
             ask my-carryLinks[
               set thingToPut other-end
+              ask thingToPut[
+                put currentUser thingToPut patchToPut
+              ]
             ]
-            put currentUser thingToPut patchToPut
+            endTask currentUser nobody
+          ]
+
+          ;;;; Tâche prendre un objet
+          ;;;; Cible = objet
+          if currentTaskAction = "take"[
+            let thingToTake nobody
+            ask currentTask[
+              ask other-end[
+                set thingToTake self
+              ]
+            ]
+            take currentUser thingToTake
             endTask currentUser nobody
           ]
 
@@ -2534,12 +2554,12 @@ to userBehaviour
                 ]
                 if isFinished[
                   ask currentDish[
-                    set cleanliness 0 ; TODO Gestion saleté vaisselle
+                    set cleanliness 0
                   ]
 
                   ;;;;; Création tâche mettre au lave-vaisselles
                   take currentUser currentDish
-                  let nextTask createTask currentUser "put" one-of dishwashers 1
+                  let nextTask createTask currentUser "put" one-of dishwashers with [isActive = false] 1
                   ;;;;; Fin de la tâche
                   endTask currentUser nextTask
                 ]
@@ -2889,7 +2909,7 @@ to userBehaviour
             ask showers-here[
               if not isActive[
                 set isActive true
-              ]
+              ];TODO Déplacer dans objects behavior
               ;;;;; Nettoyage de l'utilisateur sous la douche
               ask users-here[
                 if cleanliness < 100[
@@ -2898,7 +2918,7 @@ to userBehaviour
                 if cleanliness > 100[
                   set cleanliness 100
                 ]
-              ]
+              ];TODO Gestion temperature eau
             ]
             ;;;;; Fini au bout de 15 minutes
             ask currentTask[
@@ -2958,15 +2978,13 @@ to userBehaviour
             endTask currentUser nobody
           ]
 
-
-          ;;;; TODO Vaisselle si pas bcp dans placard
-
-          ;;;; Allumer l'appareil
+          ;;;; Tâche allumer l'appareil
           ;;;; Cible = peu importe tant qu'il peut être activé
           if currentTaskAction = "turn on"[
             let taskTargetPatch nobody
             ask currentTask[
               ask other-end[
+                set taskTargetPatch patch-here
                 set isActive true
               ]
             ]
@@ -3011,7 +3029,6 @@ to userBehaviour
           set isActive false
         ]
       ]
-
       ;;;; Entrée
       ifelse pcolor = 64.7 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 64.7]))[
         ifelse luminosityEntrance = 0[
@@ -3126,38 +3143,38 @@ to userBehaviour
 
         ;;;;; Aller au lit
         if item nextRoutineIndex RoutineActions = "sleep" and not any?(my-taskLinks with [action = "sleep"])[
-          let nextTask createTask currentUser "sleep" one-of beds 3
+          let nextTask createTask currentUser "sleep" one-of beds 1
         ]
 
         ;;;;; Petit déjeuner
         if item nextRoutineIndex RoutineActions = "breakfast" and not any?(my-taskLinks with [action = "get something to eat" or action = "get meal" or action = "eat fruit"])[
-          let nextTask createTask currentUser "eat fruit" one-of fruits 3
+          let nextTask createTask currentUser "eat fruit" one-of fruits 4
         ]
 
         ;;;;; Déjeuner/Diner
         if (item nextRoutineIndex RoutineActions = "lunch" or item nextRoutineIndex RoutineActions = "diner") and not any?(my-taskLinks with [action = "get something to eat" or action = "eat on table"])[
-          let nextTask createTask currentUser "get meal" one-of fridges 3
+          let nextTask createTask currentUser "get meal" one-of fridges 4
         ]
 
         ;;;;; Prendre une douche
         if item nextRoutineIndex RoutineActions = "shower" and not any?(my-taskLinks with [action = "take shower"])[
-          let nextTask createTask currentUser "take shower" one-of showers 3
+          let nextTask createTask currentUser "take shower" one-of showers 4
         ]
 
         ;;;;; Aller dehors
         if item nextRoutineIndex RoutineActions = "go outside" and not any?(my-taskLinks with [action = "go outside"]) and not isOutside[
           let entranceDoor one-of doors with[xcor = 0 or ycor = 0]
-          let nextTask createTask currentUser "go outside" entranceDoor 3
+          let nextTask createTask currentUser "go outside" entranceDoor 4
         ]
 
         ;;;;; Faire les courses
         if item nextRoutineIndex RoutineActions = "go to store" and not any?(my-taskLinks with [action = "go to store"]) and not isOutside[
           let entranceDoor one-of doors with[xcor = 0 or ycor = 0]
-          let nextTask createTask currentUser "go to store" entranceDoor 3
+          let nextTask createTask currentUser "go to store" entranceDoor 4
         ]
 
         ;;;;; Rentrer à la maison
-        if item nextRoutineIndex RoutineActions = "go back home" and isOutside[
+        if item nextRoutineIndex RoutineActions = "go back home" and isOutside and not any?(my-taskLinks with [action = "go to store"])[
           if isOutside[
             set isOutside false
           ]
@@ -3184,12 +3201,14 @@ to userBehaviour
     ;;; Besoins dynamiques
     ;;;; Si a faim, va chercher un casse croute
     if hunger < 10 and not any?(my-taskLinks)[
-      let task createTask currentUser "get something to eat" one-of fridges with[any?(my-containLinks with[is-fruit? other-end])] 2
+      let task createTask currentUser "get something to eat" one-of fridges with[any?(my-containLinks with[is-fruit? other-end])] 3
     ]
 
-    ;;;; Si fatigué, va faire une sieste
-    if sleep < 10 and not any?(my-taskLinks with [action = "sleep" or action = "rest"]) [
-      let task createTask currentUser "rest" one-of beds 2
+    ;;;; Si fatigué et pas bientôt l'heure de se coucher, va faire une sieste
+    if nextRoutineIndex != -1[
+      if sleep < 10 and not any?(my-taskLinks with [action = "sleep" or action = "rest"]) and item nextRoutineIndex routineActions != "sleep"[
+        let task createTask currentUser "rest" one-of beds 3
+      ]
     ]
 
     ;;;; Si frigo presque vide, aller faire les courses
@@ -3201,23 +3220,46 @@ to userBehaviour
     ]
     if isGroceriesNeed and not any?(my-taskLinks)[
       let entranceDoor one-of doors with[xcor = 0 or ycor = 0]
-      let task createTask currentUser "go to store" entranceDoor 1
+      let task createTask currentUser "go to store" entranceDoor 3
     ]
 
-    ;;;; Si placard presque vide, allumer le lave-vaisselles
+    ;;;; Si placard presque vide, allumer le lave-vaisselle si necessaire (contient au moins une vaisselle sale et pas de vaisselle propre)
+
     let isDishesNeed false
     ask cupboards[
-     if dishesQuantity <= 1[
-       set isDishesNeed true
+      if dishesQuantity <= 8[ ;TODO mettre à 2
+        set isDishesNeed true
       ]
     ]
-    if isDishesNeed[
-      let task createTask currentUser "turn on" one-of dishwashers 1
+    if isDishesNeed and not any?(my-taskLinks)[
+      let task createTask currentUser "turn on" one-of dishwashers with [isActive = false and not any?(my-containLinks with[is-dish? other-end and [cleanliness] of other-end = 100]) and any?(my-containLinks with[is-dish? other-end and [cleanliness] of other-end = 0])] 4
+    ]
+
+    ;;;; Si lave vaisselle fini de laver, ranger la vaisselle propre et mettre la vaisselle sale
+    let isDishwasherFinished false
+    ask dishwashers with [isActive = false and any?(my-containLinks with [is-dish? other-end])][
+      ask my-containLinks with [is-dish? other-end][
+        ask other-end[
+         if cleanliness = 100[
+           set isDishwasherFinished true
+          ]
+        ]
+      ]
+    ]
+    if isDishwasherFinished and not any?(my-taskLinks)[
+      ask dishes with [cleanliness = 100 and any?(my-in-containLinks with[is-dishwasher? other-end])][
+        let task createTask currentUser "take" self 1
+        set task createTask currentUser "put" one-of cupboards 2
+      ]
+      ask dishes with [cleanliness = 0 and not any?(my-in-containLinks with[is-dishwasher? other-end])][
+        let task createTask currentUser "take" self 1
+        set task createTask currentUser "put" one-of dishwashers with [isActive = false] 2
+      ]
     ]
 
     ;;;; TODO gestion Linge
 
-
+    ;;;; TODO Routine prendre un café
 
 
     ;;; Dégradation besoins
@@ -3303,8 +3345,68 @@ to objectsBehaviour
   ]
 
   ;; Comportement lave-vaisselle
-  ask dishwashers with[isActive][
-    ;TODO
+  ;; TODO Revoir système de cycles
+  ask dishwashers[
+    ifelse any?(my-containLinks with[is-dish? other-end])[
+      let dirtlevels []
+      ask my-containLinks with[is-dish? other-end][
+        ask other-end[
+          set dirtlevels insert-item 0 dirtlevels (100 - cleanliness)
+        ]
+      ]
+      set dirtlevel mean dirtlevels
+    ][
+      set dirtLevel 0
+    ]
+    ;;; Fonctionnement
+    if isActive[
+      ;;;; Gestion température eau
+      if waterTemperature > temperaturePrincipalRooms[
+        set waterLevel waterLevel - (waterTemperature / (60 * 60 * 2 ) ) ;;;;; 2h pour refroidir
+      ]
+
+      ;;;; Si allumé
+      if timeleft = 0[
+        set cyclemode "fill"
+        set timeleft ( 3 * 60 * 60 )
+      ]
+
+
+      ;;;; Cycles
+      ifelse cyclemode = "fill"[
+        if waterLevel < 100[
+          set waterLevel waterLevel + ( 100 / (60 * 15 ) ) ;;;;; 15 minutes pour remplir
+        ]
+        if waterTemperature < 65 [
+          set waterTemperature waterTemperature + ( 60 / ( 60 * 5 ) ) ;;;;; L'eau est chauffée en 5 minutes
+        ]
+        ;;;;; Nettoyage
+        if waterLevel > 90 and waterTemperature >= 60[
+          ask my-containLinks with [is-dish? other-end][
+            ask other-end[
+              set cleanliness cleanliness + (100 / 60 * 30)
+              if cleanliness > 100 [set cleanliness 100]
+            ]
+          ]
+        ]
+        if timeleft < ( 2 * 60 * 60 )[
+          set cyclemode "rinse"
+        ]
+      ][
+        if cyclemode = "rinse"[
+          if timeleft < (60 * 60 )[
+            set cyclemode "dry"
+          ]
+        ]
+      ]
+      set timeleft timeleft - 1
+
+      ;;;; Fin du programme
+      if timeleft <= 0[
+        set timeleft 0
+        set isActive false
+      ]
+    ]
   ]
 
   ;; Comportement lampes
@@ -3346,10 +3448,10 @@ to objectsBehaviour
       ]
       ;;; une demi-heure pour refroidir à température frigo
       if temperature > temperatureFridge[
-        set temperature temperature - ( temperatureFridge * temperature / (60 * 60 * 3))
+        set temperature temperature - ( temperatureFridge * temperature / (60 * 30))
       ]
       if temperature < temperatureFridge[
-        set temperature temperature + ( temperatureFridge * temperature / (60 * 60 * 3))
+        set temperature temperature + ( temperatureFridge * temperature / (60 * 30))
       ]
     ][
       ;;; Si pas dans frigo
@@ -4653,12 +4755,6 @@ true
 0
 Polygon -7500403 true true 45 75 150 30 255 75 285 225 240 225 240 195 210 195 210 225 165 225 165 195 135 195 135 225 90 225 90 195 60 195 60 225 15 225 45 75
 
-lavelinge
-false
-0
-Rectangle -1 true false 45 45 255 255
-Circle -7500403 true true 88 103 124
-
 leaf
 false
 0
@@ -4837,6 +4933,12 @@ Polygon -10899396 true false 105 90 75 75 55 75 40 89 31 108 39 124 60 105 75 10
 Polygon -10899396 true false 132 85 134 64 107 51 108 17 150 2 192 18 192 52 169 65 172 87
 Polygon -10899396 true false 85 204 60 233 54 254 72 266 85 252 107 210
 Polygon -7500403 true true 119 75 179 75 209 101 224 135 220 225 175 261 128 261 81 224 74 135 88 99
+
+washingmachine
+false
+0
+Rectangle -1 true false 45 45 255 255
+Circle -7500403 true true 88 103 124
 
 wheel
 false
