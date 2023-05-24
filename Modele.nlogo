@@ -4047,7 +4047,7 @@ to objectsBehaviour
     ]
   ]
 
-  ;; DOING Comportement évier
+  ;; Comportement évier
   ask sinks[
 
     ;;; Gestion temperature eau
@@ -4130,28 +4130,28 @@ to objectsBehaviour
       ;;;; Salle de bain
       ifelse pcolor = 84.9 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 84.9]))[
         if temperature > temperatureBathroom[
-          set temperature temperature - ( temperatureBathroom * temperature / (60 * 60 * 3))
+          set temperature temperature - ( (temperature - temperatureBathroom) / (60 * 60 * 3))
         ]
         if temperature < temperatureBathroom[
-          set temperature temperature + ( temperatureBathroom * temperature / (60 * 60 * 3))
+          set temperature temperature + ( (temperatureBathroom - temperature) / (60 * 60 * 3))
         ]
       ][
         ;;;; Entrée
         ifelse pcolor = 64.7 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 64.7]))[
           if temperature > temperatureEntrance[
-            set temperature temperature - ( temperatureEntrance * temperature / (60 * 60 * 3))
+            set temperature temperature - ( (temperature - temperatureEntrance) / (60 * 60 * 3))
           ]
           if temperature < temperatureEntrance[
-            set temperature temperature + ( temperatureEntrance * temperature / (60 * 60 * 3))
+            set temperature temperature + ( (temperatureEntrance - temperature) / (60 * 60 * 3))
           ]
         ][
           ;;;; Pièce principale
-          if (pcolor = 126.3 or pcolor = 14.4 or pcolor = 44.4 ) or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 84.9]))[
+          if (pcolor = 126.3 or pcolor = 14.4 or pcolor = 44.4 ) or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 126.3 or pcolor = 14.4 or pcolor = 44.4]))[
             if temperature > temperaturePrincipalRooms[
-              set temperature temperature - ( temperaturePrincipalRooms * temperature / (60 * 60 * 3))
+              set temperature temperature - ( (temperature - temperaturePrincipalRooms) / (60 * 60 * 3))
             ]
             if temperature < temperaturePrincipalRooms[
-              set temperature temperature + ( temperaturePrincipalRooms * temperature / (60 * 60 * 3))
+              set temperature temperature + ( (temperaturePrincipalRooms - temperature) / (60 * 60 * 3))
             ]
           ]
         ]
@@ -4161,7 +4161,36 @@ to objectsBehaviour
 
   ;; Comportement café
   ask coffees[
-    ;;; TODO Gestion température café
+    ;;; 2h pour refroidir à température pièce
+    ;;;; Salle de bain
+    ifelse pcolor = 84.9 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 84.9]))[
+      if temperature > temperatureBathroom[
+        set temperature temperature - ( (temperature - temperatureBathroom) / (60 * 60 * 2))
+      ]
+      if temperature < temperatureBathroom[
+        set temperature temperature + ( (temperatureBathroom - temperature) / (60 * 60 * 2))
+      ]
+    ][
+      ;;;; Entrée
+      ifelse pcolor = 64.7 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 64.7]))[
+        if temperature > temperatureEntrance[
+          set temperature temperature - ( (temperature - temperatureEntrance) / (60 * 60 * 2))
+        ]
+        if temperature < temperatureEntrance[
+          set temperature temperature + ( (temperatureEntrance - temperature) / (60 * 60 * 2))
+        ]
+      ][
+        ;;;; Pièce principale
+        if (pcolor = 126.3 or pcolor = 14.4 or pcolor = 44.4 ) or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 126.3 or pcolor = 14.4 or pcolor = 44.4]))[
+          if temperature > temperaturePrincipalRooms[
+            set temperature temperature - ( (temperature - temperaturePrincipalRooms) / (60 * 60 * 2))
+          ]
+          if temperature < temperaturePrincipalRooms[
+            set temperature temperature + ( (temperaturePrincipalRooms - temperature) / (60 * 60 * 2))
+          ]
+        ]
+      ]
+    ]
   ]
 
   ;; Mise à jour quantités frigo
