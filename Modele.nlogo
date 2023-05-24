@@ -87,8 +87,8 @@ cupboards-own [dishesQuantity]
 ;; Meubles connectes
 ;;; SdB
 breed [showers shower]
-showers-own [waterTemperature debit isActive]
-
+showers-own [waterTemperature showerThermostat debit isActive]
+; TODO Besoin toilette
 breed [toilets toilet]
 toilets-own [tankCapacity fillingDebit isActive]
 
@@ -2928,18 +2928,11 @@ to userBehaviour
             ;;;;; Allume la douche si pas déjà activée
             ask showers-here[
               if not isActive[
+                set showerThermostat 38
                 set isActive true
-              ];TODO Déplacer dans objects behavior
-              ;;;;; Nettoyage de l'utilisateur sous la douche
-              ask users-here[
-                if cleanliness < 100[
-                  set cleanliness cleanliness + (100 / (60 * 15))
-                ]
-                if cleanliness > 100[
-                  set cleanliness 100
-                ]
-              ];TODO Gestion temperature eau
+              ]
             ]
+
             ;;;;; Fini au bout de 15 minutes
             ask currentTask[
               if time > (60 * 15)[
@@ -3011,7 +3004,7 @@ to userBehaviour
             endTask currentUser nobody
           ]
 
-          ;;;; TOTEST Tâche lire un livre
+          ;;;; Tâche lire un livre
           ;;;; Cible = bibliothèque OU chaise OU lit
           if currentTaskAction = "read book"[
             let taskTarget nobody
@@ -3037,13 +3030,21 @@ to userBehaviour
                 set thingToSitTo min-one-of beds [distance myself]
               ]
 
-              let nextTask createTask currentUser "sit" thingToSitTo 1
+              let nextTask createTask currentUser "read book" thingToSitTo 1
               endTask currentUser nextTask
-              set nextTask createTask currentUser "read book" thingToSitTo 1
             ]
 
             ;;;;; Si cible = chaise ou lit
             if is-chair? taskTarget or is-bed? taskTarget[
+              ;;;;;; S'assoit si pas encore dessus
+              let taskTargetPatch nobody
+              ask taskTarget[
+               set taskTargetPatch patch-here
+              ]
+              if taskTargetPatch != patch-here[
+               move-to taskTargetPatch
+              ]
+
               ;;;;;; Lire le livre (ne fait rien quoi) si pas d'autre tâche
               ;;;;;; Remettre le livre dès qu'il y a une nouvelle tâche
               if any?(my-taskLinks with[action != "read book"])[
@@ -3053,7 +3054,7 @@ to userBehaviour
             ]
           ]
 
-          ;;;; TOTEST Tâche prendre un café
+          ;;;; Tâche prendre un café
           ;;;; Cible = cafetière
           if currentTaskAction = "take coffee"[
             let taskTarget nobody
@@ -3071,7 +3072,7 @@ to userBehaviour
               ;;;;;; Vérification si café prêt
               let isCoffeeReady false
               ask taskTarget[
-                if coffeeCapacity > 100 / 25[
+                if coffeeCapacity > 100 / 25 and coffeeTemperature > 70[
                   set isCoffeeReady true
                 ]
               ]
@@ -3115,7 +3116,7 @@ to userBehaviour
                       ]
                     ]
                   ]
-                  set coffeeCapacity coffeeCapacity - 100 / 25 ;;;;;;; Une cafetière = 5 versements
+                  set coffeeCapacity coffeeCapacity - 100 / (5 * 5) ;;;;;;; Une cafetière = 5 tasses
                 ]
                 ;;;;;;; Aller boire le café une fois versé
                 if isCoffeePoured[
@@ -3142,6 +3143,10 @@ to userBehaviour
                 ask taskTarget[
                   if not isActive[
                     set isActive true
+                  ]
+                  ;;;;;;; Remplit avec de l'eau si niveau faible
+                  if waterCapacity <= 15[
+                   set waterCapacity 100
                   ]
                 ]
               ]
@@ -3287,6 +3292,7 @@ to userBehaviour
           set isActive false
         ]
       ]
+
       ;;;; SàM
       ifelse pcolor = 14.4 or ((pcolor = 23.3 or pcolor = 6.3) and any?(neighbors with[pcolor = 14.4]))[
         ifelse luminosityPrincipalRooms = 0[
@@ -3454,7 +3460,7 @@ to userBehaviour
 
     let isDishesNeed false
     ask cupboards[
-      if dishesQuantity <= 8[ ;TODO mettre à 2
+      if dishesQuantity <= 3[
         set isDishesNeed true
       ]
     ]
@@ -3584,15 +3590,10 @@ to objectsBehaviour
       set dirtLevel 0
     ]
 
-    ;;;; Gestion température eau
-    ifelse waterTemperature >= temperaturePrincipalRooms[
-      set waterLevel waterLevel - ((waterTemperature - temperaturePrincipalRooms) * 100 / (60 * 60 * 2 ) ) ;;;;; 2h pour refroidir
-    ][
-      set waterLevel waterLevel + ((temperaturePrincipalRooms - waterTemperature) * 100 / (60 * 60 * 2 ) )
-    ]
+
 
     ;;; Fonctionnement
-    if isActive[
+    ifelse isActive[
 
       ;;;; Si allumé
       if timeleft = 0[
@@ -3606,20 +3607,21 @@ to objectsBehaviour
         if waterLevel < 100[
           set waterLevel waterLevel + ( 100 / (60 * 15 ) ) ;;;;; 15 minutes pour remplir
         ]
-        if waterTemperature < 65 [
-          set waterTemperature waterTemperature + ( 60 / ( 60 * 5 ) ) ;;;;; L'eau est chauffée en 5 minutes
-        ]
-        ;;;;; Nettoyage
-        if waterLevel > 90 and waterTemperature >= 60[
-          ask my-containLinks with [is-dish? other-end][
-            ask other-end[
-              set cleanliness cleanliness + (100 / 60 * 30)
-              if cleanliness > 100 [set cleanliness 100]
+        ifelse waterTemperature < 65 [
+          set waterTemperature waterTemperature + ( 100 / ( 60 * 5 ) ) ;;;;; L'eau est chauffée en 5 minutes
+        ][
+          ;;;;; Nettoyage
+          if waterLevel > 90 and waterTemperature >= 60[
+            ask my-containLinks with [is-dish? other-end][
+              ask other-end[
+                set cleanliness cleanliness + (100 / 60 * 30)
+                if cleanliness > 100 [set cleanliness 100]
+              ]
             ]
           ]
-        ]
-        if timeleft < ( 2 * 60 * 60 )[
-          set cyclemode "rinse"
+          if timeleft < ( 2 * 60 * 60 )[
+            set cyclemode "rinse"
+          ]
         ]
       ][
         if cyclemode = "rinse"[
@@ -3635,31 +3637,42 @@ to objectsBehaviour
         set timeleft 0
         set isActive false
       ]
+    ][
+      ;;;; Gestion température eau
+      ifelse waterTemperature >= temperaturePrincipalRooms[
+        set waterTemperature waterTemperature - ((waterTemperature - temperaturePrincipalRooms) * 100 / (60 * 60 * 2 ) ) ;;;;; 2h pour refroidir
+      ][
+        set waterTemperature waterTemperature + ((temperaturePrincipalRooms - waterTemperature) * 100 / (60 * 60 * 2 ) )
+      ]
     ]
   ]
 
   ;; Comportement machine à café
   ask coffeeMakers[
     ;;; Gestion température café/eau
-      ifelse coffeeTemperature >= temperaturePrincipalRooms[
-        set coffeeTemperature coffeeTemperature - ( (coffeeTemperature - temperaturePrincipalRooms) * 100 / (60 * 60))
-      ][
-        set coffeeTemperature coffeeTemperature + ( (temperaturePrincipalRooms - coffeeTemperature) * 100 / (60 * 60))
-      ]
+    ifelse coffeeTemperature >= temperaturePrincipalRooms[
+      set coffeeTemperature coffeeTemperature - ((coffeeTemperature - temperaturePrincipalRooms) / (60 * 60))
+    ][
+      set coffeeTemperature coffeeTemperature + ((temperaturePrincipalRooms - coffeeTemperature) / (60 * 60))
+    ]
 
     if isActive[
       let isFinished false
 
       ifelse coffeeTemperature < 90[
-        ;;; Chauffer eau
+        ;;; Chauffer café
         set coffeeTemperature coffeeTemperature + 100 / 15
       ][
         ;;; Remplissage cafetière
-        ifelse waterCapacity > 0[
-          set waterCapacity waterCapacity - 100 / 60
-          if waterCapacity < 0 [set waterCapacity 0]
-          set coffeeCapacity coffeeCapacity + 100 / 60
-          if coffeeCapacity > 100 [set coffeeCapacity 100]
+        ifelse coffeeCapacity < 20[
+          ifelse waterCapacity > 0[
+            set waterCapacity waterCapacity - 100 / 60
+            if waterCapacity < 0 [set waterCapacity 0]
+            set coffeeCapacity coffeeCapacity + 100 / 60
+            if coffeeCapacity > 100 [set coffeeCapacity 100]
+          ][
+            set isFinished true
+          ]
         ][
           set isFinished true
         ]
@@ -3671,7 +3684,40 @@ to objectsBehaviour
     ]
   ]
 
+  ;; Comportement douche
+  ask showers[
+    ;;; Gestion temperature eau
+    ifelse waterTemperature >= temperatureBathroom[
+      set waterTemperature waterTemperature - ( (waterTemperature - temperatureBathroom) / ( 60 * 60 ))
+    ][
+      set waterTemperature waterTemperature + ( (temperatureBathroom - waterTemperature) / ( 60 * 60 ))
+    ]
 
+    ;;; Si actif
+    ifelse isActive[
+      set debit 100
+
+      ;;;; Thermostat
+      if waterTemperature <= showerThermostat[
+        set waterTemperature waterTemperature + ( thermostat / 20 )
+      ]
+
+
+      ;;;; Nettoyage de l'utilisateur sous la douche
+      if waterTemperature > showerThermostat[
+        ask users-here[
+          if cleanliness < 100[
+            set cleanliness cleanliness + (100 / (60 * 15))
+          ]
+          if cleanliness > 100[
+            set cleanliness 100
+          ]
+        ]
+      ]
+    ][
+      set debit 0
+    ]
+  ]
 
   ;; Comportement lampes
   ask lights[
@@ -3754,7 +3800,7 @@ to objectsBehaviour
 
   ;; Comportement café
   ask coffees[
-
+    ;;; TODO Gestion température café
   ]
 
   ;; Mise à jour quantités frigo
@@ -4145,7 +4191,7 @@ maxTemperatureFall
 maxTemperatureFall
 minTemperatureFall
 50
-20000.0
+16.0
 1
 1
 °C
