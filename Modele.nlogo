@@ -93,7 +93,7 @@ breed [toilets toilet]
 toilets-own [tankCapacity fillingDebit isActive]
 
 breed [sinks sink]
-sinks-own [waterTemperature debit isActive]
+sinks-own [waterTemperature sinkThermostat debit isActive]
 
 ;;; Chambre
 breed [beds bed]
@@ -238,6 +238,7 @@ users-own[
   ;;; Besoins
   hunger
   sleep
+  toiletNeed
   comfort
   health
   cleanliness
@@ -1384,6 +1385,7 @@ to setupUser
       ;;; Besoins
       set hunger 100
       set sleep 100
+      set toiletNeed 100
       set comfort 100
       set health 100
       set cleanliness 100
@@ -3149,11 +3151,89 @@ to doTask [inputUser]
         endTask inputUser nobody
       ]
 
+      ;;;; Tâche utiliser les toilettes
+      ;;;; Cible = toilettes
+      if currentTaskAction = "go to toilet"[
+        let taskTarget nobody
+        let isFinished false
+
+        ;;;;; Va sur les toilettes
+        let taskTargetPatch nobody
+        ask currentTask[
+          set taskTarget other-end
+          ask other-end[
+            set taskTargetPatch patch-here
+          ]
+        ]
+        if patch-here != taskTargetPatch[
+          move-to taskTargetPatch
+        ]
+
+        ;;;;; Assouvissement besoin
+        set toiletNeed toiletNeed + (100 / 20)
+        if toiletNeed > 100 [set toiletNeed 100]
+
+        ;;;;; Petite baisse cleanliness
+        set cleanliness cleanliness - ( 100 / ( 60 * 60 ) )
+
+        ;;;;; Fini au bout de 30 secondes
+        ask currentTask[
+          if time > 30[
+            set isFinished true
+          ]
+        ]
+        if isFinished[
+          ;;;;; Si fini, tirer la chasse et se laver les mains
+          ask tasktarget[
+            if not isActive[
+              set isActive true
+            ]
+          ]
+          let nextTask createTask inputUser "wash hands" min-one-of sinks [distance myself] 1
+          endtask inputUser nextTask
+        ]
+      ]
+
+      ;;;; Tâche se laver les mains
+      ;;;; Cible = évier
+      if currentTaskAction = "wash hands"[
+        let taskTarget nobody
+        let isFinished false
+
+        ask currentTask[
+          set taskTarget other-end
+        ]
+
+        ;;;;; Allumer
+        ask tasktarget[
+          if not isActive[
+            set isActive true
+          ]
+        ]
+        ;;;;; Petite hausse cleanliness
+        set cleanliness cleanliness + ( 100 / ( 60 * 30 ) )
+
+        ;;;;; Fini au bout de 20 secondes
+        ask currentTask[
+          if time > 20[
+            set isFinished true
+          ]
+        ]
+        if isFinished[
+          ;;;;; Si fini, fermer le robinet
+          ask tasktarget[
+            if isActive[
+              set isActive false
+            ]
+          ]
+          endtask inputUser nobody
+        ]
+      ]
+
 
       ;;;; TODO Implémenter actions des tâches ici
 
     ]
-
   ]
 
 end
@@ -3507,7 +3587,10 @@ to userBehaviour
       ]
     ]
 
-    ;;;;; TODO Va au toilettes
+    ;;;;; Va au toilettes si il a envie
+    if toiletNeed < 10 and not any?(my-taskLinks)[
+      let task createTask currentUser "go to toilet" one-of toilets 3
+    ]
 
     ;;;; Si frigo presque vide, aller faire les courses
     let isGroceriesNeed false
@@ -3619,8 +3702,6 @@ to userBehaviour
       ]
     ]
 
-    ;;;; TODO Toilettes
-
 
     ;;; Dégradation besoins
     ;;;; Faim (100 à 0 en 18h)
@@ -3655,7 +3736,12 @@ to userBehaviour
     ]
 
     ;;;; Toilettes
-    ;;;; TODO
+    if toiletNeed > 0[
+      set toiletNeed toiletNeed - ( 100 / (60 * 60 * 12))
+    ]
+    if toiletNeed < 0[
+      set toiletNeed 0
+    ]
 
   ]
 end
@@ -3836,7 +3922,7 @@ to objectsBehaviour
 
       ;;;; Thermostat
       if waterTemperature <= showerThermostat[
-        set waterTemperature waterTemperature + ( thermostat / 20 )
+        set waterTemperature waterTemperature + ( showerThermostat / 20 )
       ]
 
 
@@ -3936,6 +4022,61 @@ to objectsBehaviour
       if timeLeft = 0[
        set isActive false
       ]
+    ]
+  ]
+
+  ;; Comportement toilettes (tirer la chasse et se remplit si actif)
+  ask toilets with[isActive][
+    let isFinished false
+
+    ifelse tankCapacity = 100[
+      ;;; Chasse tirée
+      set tankCapacity 0
+    ][
+      ;;; Remplissage
+      set fillingDebit 100
+      set tankCapacity tankCapacity + ( fillingDebit / 20 )
+      if tankCapacity >= 100[
+        set tankCapacity 100
+        set fillingDebit 0
+        set isFinished true
+      ]
+    ]
+    if isFinished[
+      set isActive false
+    ]
+  ]
+
+  ;; DOING Comportement évier
+  ask sinks[
+
+    ;;; Gestion temperature eau
+    if any?(neighbors with [pcolor = 84.9])[
+      ifelse waterTemperature >= temperatureBathroom[
+        set waterTemperature waterTemperature - ( (waterTemperature - temperatureBathroom) / ( 60 * 60 ))
+      ][
+        set waterTemperature waterTemperature + ( (temperatureBathroom - waterTemperature) / ( 60 * 60 ))
+      ]
+    ]
+    if any?(neighbors with [pcolor = 44.4])[
+      ifelse waterTemperature >= temperaturePrincipalRooms[
+        set waterTemperature waterTemperature - ( (waterTemperature - temperaturePrincipalRooms) / ( 60 * 60 ))
+      ][
+        set waterTemperature waterTemperature + ( (temperaturePrincipalRooms - waterTemperature) / ( 60 * 60 ))
+      ]
+    ]
+
+
+
+    ifelse isActive[
+      set debit 100
+      set sinkThermostat 35
+      ;;;; Thermostat
+      if waterTemperature <= sinkThermostat[
+        set waterTemperature waterTemperature + ( sinkThermostat / 20 )
+      ]
+    ][
+      set debit 0
     ]
   ]
 
@@ -4685,7 +4826,7 @@ thermostat
 thermostat
 10
 30
-20.0
+21.0
 1
 1
 °C
