@@ -73,6 +73,7 @@ globals[
 
 ;; Meubles non connectés
 breed [doors door]
+doors-own[isOpen]
 
 breed [tables table]
 
@@ -658,6 +659,7 @@ to setupFurniture
     sprout-doors 1[
       set shape "i beam"
       set color brown
+      set isOpen false
       let targetHeading 0
       ask neighbors4 with [pxcor = pX - 1 or pxcor = pX + 1][
         if pcolor = 0[
@@ -2877,6 +2879,9 @@ to doTask [inputUser]
         ask lights with[pcolor = 64.7 and isActive][
           set isActive false
         ]
+        ask doors-here[
+          set isOpen true
+        ]
         set isOutside true
       ]
 
@@ -3298,9 +3303,16 @@ to userBehaviour
       if not hidden?[
         set hidden? true
       ]
-      ;;; Mange dehors si a faim
+      ask doors-here with[isOpen = true][
+        set isOpen false
+      ]
+
+      ;;; Gestion besoins extérieur
       if hunger < 10[
         set hunger hunger + ( 30 + random (60 - 30) )
+      ]
+      if toiletNeed < 10[
+        set toiletNeed 100
       ]
       ;;; Réalise action dehors
       doTask currentUser
@@ -3309,11 +3321,13 @@ to userBehaviour
       if hidden?[
         set hidden? false
       ]
+      ask doors-here with[isOpen = true and (xcor = 0 or ycor = 0)][
+        set isOpen false
+      ]
       ;; Si pas de tâche en cours
       ifelse currentTask = nobody[
         if count my-taskLinks != 0[
           ;;; Récupération de la tâche la plus prioritaire
-          ;;; TODO Interrompre tâche si tâche plus prioritaire apparait
           let tasksSorted sort-on [priority] my-taskLinks
           set currentTask first tasksSorted
 
@@ -3542,6 +3556,9 @@ to userBehaviour
         ;;;;; Rentrer à la maison
         if item nextRoutineIndex RoutineActions = "go back home" and isOutside and not any?(my-taskLinks with [action = "go to store"])[
           if isOutside[
+            ask doors-here[
+              set isOpen true
+            ]
             set isOutside false
           ]
           if currentTask != nobody[
@@ -3746,7 +3763,7 @@ to userBehaviour
   ]
 end
 
-; Comportement objets et meubles TODO
+; Comportement objets et meubles
 to objectsBehaviour
   ;; Comportement CarryLink
   ask turtles with[any?(my-in-carryLinks)][
@@ -4193,6 +4210,20 @@ to objectsBehaviour
     ]
   ]
 
+  ;; Comportement portes
+  ask doors[
+    set hidden? isOpen
+
+    ;;; Si porte intérieure
+    if not (xcor = 0 or ycor = 0)[
+      ifelse any?(users-here with [hidden? = false])[
+        set isOpen true
+      ][
+        set isOpen false
+      ]
+    ]
+  ]
+
   ;; Mise à jour quantités frigo
   ask fridges[
     set fruitsQuantity count my-containLinks with[is-fruit? other-end]
@@ -4223,8 +4254,6 @@ to objectsBehaviour
   ask laundryBaskets[
     set laundryQuantity count my-containLinks with[is-laundry? other-end]
   ]
-
-
 end
 
 ; TODO Comportement Capteurs
