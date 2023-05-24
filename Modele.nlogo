@@ -111,10 +111,10 @@ breed [hoods hood]
 hoods-own [power isActive]
 
 breed [washingMachines washingMachine]
-washingMachines-own [dirtDegree laundryWeight isActive]
+washingMachines-own [dirtDegree laundryWeight timeLeft isActive]
 
 breed [dryers dryer]
-dryers-own [temperature humidity laundryWeight isActive]
+dryers-own [temperature humidity laundryWeight timeLeft isActive]
 
 breed [ovens oven]
 ovens-own [cookingMethod power temperature timeLeft isActive]
@@ -502,10 +502,10 @@ to setupDate
   set weekday time:get "dayofweek" tmpDatetime
 
   ;;;; Conversion 12h vers 24
-  if substring datetimeString 13 15 = "PM" and (substring datetimeString 0 2 != "12")[
+  if substring datetimeString 13 15 = "PM" and (substring datetimeString 0 2 != "12") and not startAtmorning[
     set tmpDatetime time:plus tmpDatetime 12 "hours"
   ]
-  if substring datetimeString 13 15 = "AM" and (substring datetimeString 0 2 = "12")[
+  if substring datetimeString 13 15 = "AM" and (substring datetimeString 0 2 = "12") and not startAtmorning[
     set tmpDatetime time:plus tmpDatetime -12 "hours"
   ]
 
@@ -731,7 +731,7 @@ to setupFurniture
           set cleanliness 100
         ]
       ]
-      create-containLinks-to dishes-here
+      create-containLinks-to laundrys-here
     ]
   ]
 
@@ -2176,6 +2176,9 @@ to put [inputUser inputObject inputDestinationPatch]
       ask coffeemakers-here[
         create-containLink-to inputObject
       ]
+      ask drawers-here[
+        create-containLink-to inputObject
+      ]
     ]
   ]
 end
@@ -2225,7 +2228,6 @@ to-report createTask [inputUser inputAction inputTarget inputPriority]
 end
 
 ;; Réalisation action tâche
-;; DOING
 to doTask [inputUser]
   ask inputUser[
     let currentTaskAction ""
@@ -2825,6 +2827,18 @@ to doTask [inputUser]
           ]
         ]
         if patch-here != taskTargetPatch[
+          ;;;;; Génère un linge sale
+          ask patch-here[
+            sprout-laundrys 1[
+              set shape "tshirt"
+              set size 0.5
+              set weight 1
+              let userCleanliness 0
+              ask inputUser [set userCleanliness cleanliness]
+              set cleanliness userCleanliness
+            ]
+          ]
+
           move-to taskTargetPatch
         ]
         ;;;;; Allume la douche si pas déjà activée
@@ -2848,7 +2862,9 @@ to doTask [inputUser]
               set isActive false
             ]
           ]
-          endTask inputUser nobody
+          ;;;;; Va mettre un nouveau vêtement
+          let nextTask createTask inputUser "dress up" one-of drawers with [laundryQuantity > 1] 1
+          endTask inputUser nextTask
         ]
       ]
 
@@ -3119,6 +3135,20 @@ to doTask [inputUser]
           ]
         ]
       ]
+
+      ;;;; Tâche s'habiller
+      ;;;; Cible = commode
+      if currentTaskAction = "dress up"[
+        ask currentTask[
+          ask other-end[
+            ask one-of my-containLinks with [is-laundry? other-end and [cleanliness] of other-end = 100][
+              ask other-end [die]
+            ]
+          ]
+        ]
+        endTask inputUser nobody
+      ]
+
 
       ;;;; TODO Implémenter actions des tâches ici
 
@@ -3464,7 +3494,7 @@ to userBehaviour
       ]
     ]
 
-    ;;;; Besoins dynamiques
+    ;;;; Besoins
     ;;;;; Si a faim, va chercher un casse croute
     if hunger < 10 and not any?(my-taskLinks)[
       let task createTask currentUser "get something to eat" one-of fridges with[any?(my-containLinks with[is-fruit? other-end])] 3
@@ -3477,7 +3507,9 @@ to userBehaviour
       ]
     ]
 
-    ;;;;; Si frigo presque vide, aller faire les courses
+    ;;;;; TODO Va au toilettes
+
+    ;;;; Si frigo presque vide, aller faire les courses
     let isGroceriesNeed false
     ask fridges[
       if vegetablesQuantity <= 1 or fruitsQuantity <= 1 or meatQuantity <= 1[
@@ -3489,7 +3521,7 @@ to userBehaviour
       let task createTask currentUser "go to store" entranceDoor 3
     ]
 
-    ;;;;; Si placard presque vide, allumer le lave-vaisselle si necessaire (contient au moins une vaisselle sale et pas de vaisselle propre)
+    ;;;; Si placard presque vide, allumer le lave-vaisselle si necessaire (contient au moins une vaisselle sale et pas de vaisselle propre)
 
     let isDishesNeed false
     ask cupboards[
@@ -3501,7 +3533,7 @@ to userBehaviour
       let task createTask currentUser "turn on" one-of dishwashers with [isActive = false and not any?(my-containLinks with[is-dish? other-end and [cleanliness] of other-end = 100]) and any?(my-containLinks with[is-dish? other-end and [cleanliness] of other-end = 0])] 4
     ]
 
-    ;;;;; Si lave vaisselle fini de laver, ranger la vaisselle propre et mettre la vaisselle sale
+    ;;;; Si lave vaisselle fini de laver, ranger la vaisselle propre et mettre la vaisselle sale
     let isDishwasherFinished false
     ask dishwashers with [isActive = false and any?(my-containLinks with [is-dish? other-end])][
       ask my-containLinks with [is-dish? other-end][
@@ -3523,7 +3555,71 @@ to userBehaviour
       ]
     ]
 
-    ;;;;; TODO gestion Linge
+    ;;;; Gestion Linge
+    ;;;;; Si linge sale qui traine, le mettre dans le panier à linge
+    if any?(laundrys with[not any?(my-in-containLinks) and not any?(my-in-carryLinks) and cleanliness != 100]) and any?(washingMachines with [isActive = false]) and not any?(my-taskLinks)[
+      ask laundrys with[not any?(my-in-containLinks) and not any?(my-in-carryLinks) and cleanliness != 100][
+        let task createTask currentUser "take" self 1
+        set task createTask currentUser "put" one-of laundryBaskets 2
+      ]
+    ]
+    ;;;;; Si linge propre qui traine, le mettre dans la commode
+    if any?(laundrys with[not any?(my-in-containLinks) and not any?(my-in-carryLinks) and cleanliness = 100]) and not any?(my-taskLinks)[
+      ask laundrys with[not any?(my-in-containLinks) and not any?(my-in-carryLinks) and cleanliness = 100][
+        let task createTask currentUser "take" self 1
+        set task createTask currentUser "put" one-of drawers 2
+      ]
+    ]
+    ;;;;; Si linge propre et humide qui attend à être mis au sèche linge, les mettre dans le sèche linge
+    if any?(laundrys with[not any?(my-in-containLinks with[is-dryer? other-end]) and not any?(my-in-containLinks with[is-dishwasher? other-end and [isActive] of other-end = true]) and not any?(my-in-carryLinks) and cleanliness = 100 and humidity = 100]) and not any?(my-taskLinks)[
+      ask laundrys with[not any?(my-in-containLinks with[is-dryer? other-end]) and not any?(my-in-containLinks with[is-dishwasher? other-end and [isActive] of other-end = true]) and not any?(my-in-carryLinks) and cleanliness = 100 and humidity = 100][
+        let task createTask currentUser "take" self 1
+        set task createTask currentUser "put" one-of dryers 2
+      ]
+    ]
+
+    ;;;;; Si peu de linge dispo, mettre le linge sale dans le lave linge
+    let isLaundryNeed false
+    ask drawers[
+      if laundryQuantity <= 2[
+        set isLaundryNeed true
+      ]
+    ]
+    if isLaundryNeed and not any?(my-taskLinks) and not any?(my-carryLinks) and any?(washingMachines with [isActive = false and not any?(my-containLinks with[is-laundry? other-end and [cleanliness] of other-end = 100])]) and any?(laundrys with[any?(my-in-containLinks with [is-laundryBasket? other-end])])[
+      ask laundrys with[any?(my-in-containLinks with [is-laundryBasket? other-end])][
+        let task createTask currentUser "take" self 1
+      ]
+      let selectedWashingMachine one-of washingMachines with [isActive = false and not any?(my-containLinks with[is-laundry? other-end and [cleanliness] of other-end = 100])]
+
+      let task createTask currentUser "put" selectedWashingMachine 2
+    ]
+
+    ;;;;; Si vêtements sales en attente dans le lave linge, allumer le lave linge
+    if any?(washingMachines with[any?(my-containLinks with[is-laundry? other-end and [cleanliness] of other-end != 100]) and isActive = false]) and not any?(my-taskLinks) and not any?(my-carryLinks)[
+      ask washingMachines with[any?(my-containLinks with[is-laundry? other-end and [cleanliness] of other-end != 100]) and isActive = false][
+        let task createTask currentUser "turn on" self 2
+      ]
+    ]
+
+    ;;;;; Si vêtements secs en attente dans le sèche linge, les ranger dans la commode
+    if any?(dryers with[any?(my-containLinks with[is-laundry? other-end and [humidity] of other-end = 0]) and isActive = false]) and not any?(my-taskLinks) and not any?(my-carryLinks)[
+      ask dryers with[any?(my-containLinks with[is-laundry? other-end and [humidity] of other-end = 0]) and isActive = false][
+        ask my-containLinks with[is-laundry? other-end and [humidity] of other-end = 0][
+          let task createTask currentUser "take" other-end 1
+        ]
+
+        let task createTask currentUser "put" one-of drawers 2
+      ]
+    ]
+
+    ;;;;; Si vêtements à sécher en attente dans le sèche linge, allumer le sèche linge
+    if any?(dryers with[any?(my-containLinks with[is-laundry? other-end and [humidity] of other-end > 0]) and isActive = false]) and not any?(my-taskLinks) and not any?(my-carryLinks)[
+      ask dryers with[any?(my-containLinks with[is-laundry? other-end and [humidity] of other-end > 0]) and isActive = false][
+        let task createTask currentUser "turn on" self 2
+      ]
+    ]
+
+    ;;;; TODO Toilettes
 
 
     ;;; Dégradation besoins
@@ -3546,7 +3642,17 @@ to userBehaviour
     ]
 
     ;;;; Propreté
-    ;;;; TODO
+    if cleanliness > 0[
+      ;;;;; Se salit plus vite si dehors
+      ifelse isOutside[
+        set cleanliness cleanliness - ( 100 / (60 * 60 * 18))
+      ][
+        set cleanliness cleanliness - ( 100 / (60 * 60 * 24))
+      ]
+    ]
+    if cleanliness < 0[
+      set cleanliness 0
+    ]
 
     ;;;; Toilettes
     ;;;; TODO
@@ -3623,9 +3729,6 @@ to objectsBehaviour
     ][
       set dirtLevel 0
     ]
-
-
-
     ;;; Fonctionnement
     ifelse isActive[
 
@@ -3753,6 +3856,89 @@ to objectsBehaviour
     ]
   ]
 
+  ;; Comportement lave linge
+  ask washingMachines[
+    let laundryCount 0
+
+    ifelse any?(my-containLinks with [is-laundry? other-end])[
+      let cleanlinesses []
+      ask my-containLinks with [is-laundry? other-end][
+        set laundryCount laundryCount + [weight] of other-end
+        set cleanlinesses insert-item 0 cleanlinesses [cleanliness] of other-end
+      ]
+      set dirtDegree 100 - mean cleanlinesses
+    ][
+      set dirtDegree 0
+    ]
+
+    set laundryWeight laundryCount
+
+    ;;; Fonctionnement
+    ifelse isActive[
+      set color cyan
+      ;;;; Si vient d'être allumé
+      if timeLeft = 0[
+       set timeLeft 60 * 35
+      ]
+      ask my-containLinks with [is-laundry? other-end][
+        ask other-end[
+          set humidity 100
+          set cleanliness cleanliness + ( 100 / ( 25 * 60 ) )
+          if cleanliness > 100 [
+            set cleanliness 100
+          ]
+        ]
+      ]
+
+      set timeLeft timeLeft - 1
+      if timeLeft = 0[
+       set isActive false
+      ]
+    ][
+     set color black
+    ]
+  ]
+
+  ;; Comportement sèche linge
+  ask dryers[
+    let laundryCount 0
+    let humidities []
+
+    ask my-containLinks with [is-laundry? other-end][
+      set laundryCount laundryCount + [weight] of other-end
+      set humidities insert-item 0 humidities [humidity] of other-end
+    ]
+    ifelse laundryCount = 0[
+      set humidity 0
+    ][
+      set humidity mean humidities
+    ]
+
+
+    set laundryWeight laundryCount
+
+    ;;; Fonctionnement
+    if isActive[
+      ;;;; Si vient d'être allumé
+      if timeLeft = 0[
+       set timeLeft 60 * 20
+      ]
+      ask my-containLinks with [is-laundry? other-end][
+        ask other-end[
+          set humidity humidity - ( 100 / ( 15 * 60 ) )
+          if humidity < 0 [
+            set humidity 0
+          ]
+        ]
+      ]
+
+      set timeLeft timeLeft - 1
+      if timeLeft = 0[
+       set isActive false
+      ]
+    ]
+  ]
+
   ;; Comportement lampes
   ask lights[
     ifelse isActive[
@@ -3858,6 +4044,16 @@ to objectsBehaviour
     set dishesQuantity count my-containLinks with[is-dish? other-end]
   ]
 
+  ;; Mise à jour quantités commode
+  ask drawers[
+    set laundryQuantity count my-containLinks with[is-laundry? other-end]
+  ]
+
+  ;; Mise à jour quantités paniers à linge
+  ask laundryBaskets[
+    set laundryQuantity count my-containLinks with[is-laundry? other-end]
+  ]
+
 
 end
 
@@ -3916,6 +4112,11 @@ to go
   tick
 end
 ; FIN GO
+
+
+;TODO Pour lancer avec python https://pynetlogo.readthedocs.io/en/latest/_docs/introduction.html
+
+;COPYRIGHT Alexis Szmundy 2023
 @#$#@#$#@
 GRAPHICS-WINDOW
 1065
