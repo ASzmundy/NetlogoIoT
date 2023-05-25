@@ -65,6 +65,9 @@ globals[
   dirtDiningRoom
   dirtKitchen
   dirtBathroom
+
+  ;;; Données à écrire
+  toWrite
 ]
 
 
@@ -198,30 +201,26 @@ breed [alarms alarm]
 alarms-own [isActive]
 
 ;; Capteurs
-;;; Génériques
+;;; Pièces
 breed [temperatureSensors temperatureSensor]
+temperatureSensors-own[name]
 breed [luminositySensors luminositySensor]
-breed [doorSensors doorSensor]
+luminositySensors-own[name]
+;;; Mouvements
 breed [moveSensors moveSensor]
-breed [triggerSensors triggerSensor]
+moveSensors-own[name]
+;;; Particules
 breed [smokeSensors smokeSensor]
+smokeSensors-own[name lastSmokeExported]
 breed [COSensors COSensor]
-;;; Spécifiques
-breed [showerSensors showerSensor]
-breed [toiletSensors toiletSensor]
-breed [bedSensors bedSensor]
-breed [coffeeMakerSensors coffeeMakerSensor]
-breed [roombaStationSensors roombaStationSensor]
-breed [roombaSensors roombaSensor]
-breed [lightSensors lightSensor]
-breed [microwaveSensors microwaveSensor]
-breed [ovenSensors ovenSensor]
-breed [dishwasherSensors dishwasherSensor]
-breed [fridgeSensors fridgeSensor]
-breed [hotplateSensors hotplateSensor]
-breed [washingMachineSensors washingMachineSensor]
-breed [heaterSensors heaterSensor]
-breed [ACSensors ACSensor]
+COSensors-own[name lastCOExported]
+;;; Meubles
+breed [dataSensors dataSensor]
+dataSensors-own[name]
+breed [triggerSensors triggerSensor] ;;;; Comme dataSensor mais ne surveille que isActive
+triggerSensors-own[name]
+breed [openingSensors openingSensor] ;;;; Comme dataSensor mais ne surveille que isOpen
+openingSensors-own[name]
 
 ;; Utilisateur
 breed [users user]
@@ -268,11 +267,10 @@ users-own[
 
 
 ; DECLARATION LINKS
-;TODO FAIRE CAPTEUR GENERIQUE QUI EXPORTE UN ENSEMBLE DE DONNES DANS UNE LISTE (DATA SENSOR)
 ;; Links capteurs
 directed-link-breed [sensorLinks sensorLink]
 sensorLinks-own [
-  extractedDataName
+  lastDataExported
 ]
 
 ;; Links objets
@@ -444,6 +442,100 @@ to readRoutine [inputWeekDay]
   set routineTimes filter [ x -> x != "" ] routineTimes
   set routineActions filter [ x -> x != "" ] routineActions
   set nextRoutineIndex length routineTimes - 1
+end
+
+;; Fonction de récupération du nom de la pièce
+to-report getRoomName[inputTurtle]
+  let roomName nobody
+  ask inputTurtle[
+    ;;; Patch
+    if pcolor = 84.9[
+      set roomName "Bathroom"
+    ]
+    if pcolor = 64.7[
+      set roomName "Entrance"
+    ]
+    if pcolor = 126.3[
+      set roomName "Bedroom"
+    ]
+    if pcolor = 14.4[
+      set roomName "DiningRoom"
+    ]
+    if pcolor = 44.4[
+      set roomName "Kitchen"
+    ]
+    ;;; Meuble/Fenêtre
+    if pcolor = 23.3 or pcolor = 105[
+      if any?(neighbors with [pcolor = 84.9])[
+        set roomName "Bathroom"
+      ]
+      if any?(neighbors with [pcolor = 64.7])[
+        set roomName "Entrance"
+      ]
+      if any?(neighbors with [pcolor = 126.3])[
+        set roomName "Bedroom"
+      ]
+      if any?(neighbors with [pcolor = 44.4])[
+        set roomName "Kitchen"
+      ]
+      if any?(neighbors with [pcolor = 14.4])[
+        set roomName "DiningRoom"
+      ]
+
+    ]
+    ;;; Porte
+	;;; TODO Changer
+    if pcolor = 6.3[
+      let patch1 nobody
+      let patch2 nobody
+      let room1 nobody
+      let room2 nobody
+
+      ask one-of neighbors with[pcolor != 0 and pcolor != 23.3 and pcolor != 105 and pcolor != 6.3][
+        set patch1 self
+      ]
+      ask one-of neighbors with[pcolor != 0 and pcolor != 23.3 and pcolor != 105 and pcolor != 6.3 and pcolor != [pcolor] of patch1][
+        set patch2 self
+      ]
+
+      ask patch1[
+        if pcolor = 84.9[
+          set room1 "Bathroom"
+        ]
+        if pcolor = 64.7[
+          set room1 "Entrance"
+        ]
+        if pcolor = 126.3[
+          set room1 "Bedroom"
+        ]
+        if pcolor = 14.4[
+          set room1 "DiningRoom"
+        ]
+        if pcolor = 44.4[
+          set room1 "Kitchen"
+        ]
+      ]
+      ask patch2[
+        if pcolor = 84.9[
+          set room2 "Bathroom"
+        ]
+        if pcolor = 64.7[
+          set room2 "Entrance"
+        ]
+        if pcolor = 126.3[
+          set room2 "Bedroom"
+        ]
+        if pcolor = 14.4[
+          set room2 "DiningRoom"
+        ]
+        if pcolor = 44.4[
+          set room2 "Kitchen"
+        ]
+      ]
+      set roomName (word "Between" room1 "And" room2)
+    ]
+  ]
+  report roomName
 end
 
 ;; Fonction de calcul date actuelle et saison
@@ -1240,13 +1332,15 @@ to setupObjects
 end
 
 to setupSensors
-  ;; Création des capteurs génériques
+  ;; Création des capteurs
   ;;; Capteur CO
   ask patches with [
     (pxcor = 16 and pycor = 2)
     or (pxcor = 10 and pycor = 7)
   ][
     sprout-COSensors 1[
+      set name (word "COSensor" getRoomName self)
+      set lastCOExported nobody
       set shape "cylinder"
       set color magenta
       set size 0.1
@@ -1256,13 +1350,15 @@ to setupSensors
   ask patches with [
     (pxcor = 16 and pycor = 5)
   ][
-    sprout-COSensors 1[
+    sprout-SmokeSensors 1[
+      set name (word "SmokeSensor" getRoomName self)
       set shape "cylinder"
       set color gray
       set size 0.1
     ]
   ]
   ;;; Capteur Temperature
+  ;;;; Intérieur
   ask patches with [
     (pxcor = 4 and pycor = 2)
     or (pxcor = 4 and pycor = 6)
@@ -1270,34 +1366,92 @@ to setupSensors
   ][
     sprout-temperatureSensors 1[
       set shape "cylinder"
+      set name (word "TemperatureSensor" getRoomName self)
+      set color green
+      set size 0.1
+    ]
+  ]
+  ;;;; Extérieur
+  ask patches with [
+    (pxcor = 9 and pycor = 0)
+  ][
+    sprout-temperatureSensors 1[
+      set shape "cylinder"
+      set name "TemperatureSensorOutside"
       set color green
       set size 0.1
     ]
   ]
   ;;; Capteur luminosité
+  ;;;; Intérieur
   ask patches with [
     (pxcor = 3 and pycor = 9)
     or (pxcor = 2 and pycor = 4)
     or (pxcor = 12 and pycor = 3)
   ][
     sprout-luminositySensors 1[
+      set name (word "LuminositySensor" getRoomName self)
+      set shape "cylinder"
+      set color yellow
+      set size 0.1
+    ]
+  ]
+  ;;;; Extérieur
+  ask patches with [
+    (pxcor = 3 and pycor = 0)
+  ][
+    sprout-luminositySensors 1[
+      set name "LuminositySensorOutside"
       set shape "cylinder"
       set color yellow
       set size 0.1
     ]
   ]
 
-  ;;; Capteur Porte
+  ;;; Capteur ouverture
+  ;;;; Intérieur
   ask patches with [
-    any?(doors-here)
+    any?(doors-here) and pxcor != 0 and pycor != 0
   ][
-    sprout-doorSensors 1[
+    sprout-openingSensors 1[
+      set name (word "doorSensor" getRoomName self)
       set shape "cylinder"
       set color blue
       set size 0.1
-      create-sensorLink-to one-of doors-here
+      create-sensorLink-to one-of doors-here[
+        set lastDataExported []
+      ]
     ]
   ]
+  ;;;; Extérieur
+  ask patches with [
+    any?(doors-here) and (pxcor = 0 or pycor = 0)
+  ][
+    sprout-openingSensors 1[
+      set name "doorSensorOutside"
+      set shape "cylinder"
+      set color blue
+      set size 0.1
+      create-sensorLink-to one-of doors-here[
+        set lastDataExported []
+      ]
+    ]
+  ]
+  ;;;; Fenêtres
+  ask patches with [
+    any?(windows-here)
+  ][
+    sprout-openingSensors 1[
+      set name (word "windowSensor" getRoomName self)
+      set shape "cylinder"
+      set color blue
+      set size 0.1
+      create-sensorLink-to one-of windows-here[
+        set lastDataExported []
+      ]
+    ]
+  ]
+
   ;;; Capteur Mouvement
   ask patches with [
     (pxcor = 4 and pycor = 8)
@@ -1306,6 +1460,7 @@ to setupSensors
     or (pxcor = 4 and pycor = 4)
   ][
     sprout-moveSensors 1[
+      set name (word "MoveSensor" getRoomName self)
       set shape "cylinder"
       set color blue
       set size 0.1
@@ -1329,11 +1484,15 @@ to setupSensors
     or breed = washingMachines
     or breed = dryers
     or breed = heaters
+    or breed = ACs
     or breed = alarms
     or breed = shutters
   ][
+    let currentTurtleBreed (word breed)
+    set currentTurtleBreed remove-item (length currentTurtleBreed - 1) currentTurtleBreed
     ask patch-here[
       sprout-triggerSensors 1[
+        set name (word "triggerSensor" currentTurtleBreed (getRoomName self))
         set shape "cylinder"
         set color blue
         set size 0.1
@@ -1355,11 +1514,191 @@ to setupSensors
           or breed = washingMachines
           or breed = dryers
           or breed = heaters
+          or breed = ACs
           or breed = alarms
-          or breed = shutters)
+          or breed = shutters
+          )
           and count my-in-sensorLinks = 0
         ][
-          set extractedDataName "isActive"
+          set lastDataExported nobody
+        ]
+      ]
+    ]
+  ]
+  ;;; Capteurs données
+  ask showers[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorShower"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of showers-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask toilets[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorToilet"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of toilets-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask sinks[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorSink"
+        let roomName ""
+        if any?(neighbors with[pcolor = 84.9])[
+          set roomName "Bathroom"
+        ]
+        if any?(neighbors with[pcolor = 44.4])[
+          set roomName "Kitchen"
+        ]
+        set name word name roomName
+
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of sinks-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask beds[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorBed"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of beds-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask coffeeMakers[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorCoffeeMaker"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of coffeeMakers-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask roombas[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorRoomba"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of roombas-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask microwaves[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorMicrowave"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of microwaves-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask ovens[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorOven"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of ovens-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask dishwashers[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorDishwasher"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of dishwashers-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask fridges[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorFridge"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of fridges-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask hotplates[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorHotplate"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of hotplates-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask hoods[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorHood"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of hoods-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ]
+  ask washingMachines[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorWashingMachine"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of washingMachines-here[
+          set lastDataExported []
+        ]
+      ]
+    ]
+  ];TODO TEMPERATURE DRYER
+  ask dryers[
+    ask patch-here[
+      sprout-datasensors 1[
+        set name "dataSensorDryer"
+        set color gray
+        set size 0.1
+        create-sensorLink-to one-of dryers-here[
+          set lastDataExported []
         ]
       ]
     ]
@@ -1469,6 +1808,8 @@ to setup
   stop-inspecting-dead-agents
 
   ;; Initialisation variables globales
+  set toWrite ""
+
   ;;; Date et saison actuelle
   setupDate
 
@@ -3788,14 +4129,20 @@ to objectsBehaviour
     ifelse isActive[
       if color != red[set color red]
       ;;; chauffe des repas
+      set temperature temperature + ( 100 / ( 5 * 60 ))
       ask meals-here[
-        set temperature temperature + ( 100 / ( 5 * 60 ))
+        set temperature [temperature] of hotplates-here
         if temperature > cookingTemperature[
           set cookingState cookingState + ( 100 / ( 5 * 60 ))
         ]
       ]
     ][
       if color != black[set color black]
+      ifelse temperature >= temperaturePrincipalRooms[
+        set temperature temperature - ((temperature - temperaturePrincipalRooms) / (60 * 15))
+      ][
+        set temperature temperature + ((temperaturePrincipalRooms - temperature) / (60 * 15))
+      ]
     ]
   ]
 
@@ -3818,6 +4165,8 @@ to objectsBehaviour
     ]
   ]
 
+  ;; TODO Volets
+
   ;; Comportement lave-vaisselle
   ;; TODO Revoir système de cycles
   ask dishwashers[
@@ -3834,13 +4183,11 @@ to objectsBehaviour
     ]
     ;;; Fonctionnement
     ifelse isActive[
-
       ;;;; Si allumé
       if timeleft = 0[
         set cyclemode "fill"
         set timeleft ( 3 * 60 * 60 )
       ]
-
 
       ;;;; Cycles
       ifelse cyclemode = "fill"[
@@ -4106,6 +4453,8 @@ to objectsBehaviour
     ]
   ]
 
+  ;; TODO Comportement lit
+
   ;; Comportement repas
   ask meals[
     ;;; Vérification si dans frigo
@@ -4256,14 +4605,182 @@ to objectsBehaviour
   ]
 end
 
-; TODO Comportement Capteurs
+; WIP Comportement Capteurs
 to sensorBehaviour
+  ;; Capteurs CO
+  ask COSensors[
+    let dataSensorName name
+    let currentRoom getRoomName self
+    let currentData nobody
+    if currentRoom = "Bathroom"[
+      set currentData COBathroom
+    ]
+    if currentRoom = "Entrance"[
+      set currentData COEntrance
+    ]
+    if currentRoom = "Bedroom" or currentRoom = "DiningRoom" or currentRoom = "Kitchen"[
+      set currentData COPrincipalRooms
+    ]
+
+
+    ifelse lastCOExported = nobody[
+      set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter currentData "\n")
+    ][
+      if lastCOExported != currentData [
+        set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter currentData "\n")
+      ]
+    ]
+    set lastCOExported currentData
+  ]
+
+  ;; Capteurs fumée
+  ask SmokeSensors[
+    let dataSensorName name
+    let currentRoom getRoomName self
+    let currentData nobody
+    if currentRoom = "Bathroom"[
+      set currentData SmokeBathroom
+    ]
+    if currentRoom = "Entrance"[
+      set currentData SmokeEntrance
+    ]
+    if currentRoom = "Bedroom" or currentRoom = "DiningRoom" or currentRoom = "Kitchen"[
+      set currentData SmokePrincipalRooms
+    ]
+    ifelse lastSmokeExported = nobody[
+      set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter currentData "\n")
+    ][
+      if lastSmokeExported != currentData [
+        set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter currentData "\n")
+      ]
+    ]
+    set lastSmokeExported currentData
+  ]
+
+  ;; TODO Capteur température
+
+  ;; TODO Capteur luminosite
+
+  ;; TODO Capteur ouverture porte fenêtre
+
+  ;; TODO Capteur mouvement
+
+  ;; Capteur déclenchement meuble
+  ask triggerSensors[
+    let dataSensorName name
+    ask my-sensorLinks[
+      if lastDataExported = nobody [set lastDataExported false]
+      let lastDataExportedTmp lastDataExported
+      ask other-end[
+        ifelse is-shutter? self[
+          if not isOpen and lastDataExportedTmp = true[
+            set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter (remove-item (length (word breed) - 1) (word breed)) " fermé" "\n")
+          ]
+          if isOpen and lastDataExportedTmp = false[
+            set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter (remove-item (length (word breed) - 1) (word breed)) " ouvert" "\n")
+          ]
+          set lastDataExportedTmp isOpen
+        ][
+          if isActive and lastDataExportedTmp = false[
+            set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter (remove-item (length (word breed) - 1) (word breed)) " activé" "\n")
+          ]
+          set lastDataExportedTmp isActive
+        ]
+      ]
+      set lastDataExported lastDataExportedTmp
+    ]
+  ]
+
+  ;; Capteurs data
+  ask dataSensors[
+    let dataSensorName name
+    ask my-sensorlinks[
+      let dataNames nobody
+      let dataToExport nobody
+      ask other-end[
+        ;;; Récupération données avec noms en français
+        if is-toilet? self[
+          set dataNames ["Débit de remplissage" "Capacité réservoir"]
+          set dataToExport (list fillingDebit tankCapacity)
+        ]
+        if is-sink? self or is-shower? self[
+          set dataNames ["Température de l'eau" "Débit"]
+          set dataToExport (list waterTemperature Debit)
+        ]
+        if is-washingMachine? self[
+          set dataNames ["Degré de salissure" "Poids linge"]
+          set dataToExport (list dirtDegree laundryWeight)
+        ]
+        if is-dryer? self[
+          set dataNames ["Humidité" "Poids linge"]
+          set dataToExport (list humidity laundryWeight)
+        ]
+        if is-bed? self[
+          set dataNames ["Qualité du sommeil"]
+          set dataToExport (list sleepQuality)
+        ]
+        if is-roombaStation? self[
+          set dataNames ["Roomba sur station"]
+          set dataToExport (list isRoombaOnStation)
+        ]
+        if is-roomba? self[
+          set dataNames ["Capacité sac" "Taux de saleté" "Batterie restante"]
+          set dataToExport (list bagCapacity dirtLevel battery)
+        ]
+        if is-coffeeMaker? self[
+          set dataNames ["Eau restant" "Café restant" "Température café"]
+          set dataToExport (list waterCapacity coffeeCapacity coffeeTemperature)
+        ]
+        if is-hotplate? self or is-oven? self[
+          set dataNames ["Température" "Puissance"]
+          set dataToExport (list temperature power)
+        ]
+        if is-hood? self or is-microwave? self[
+          set dataNames ["Puissance"]
+          set dataToExport (list power)
+        ]
+        if is-fridge? self[
+          set dataNames ["Porte ouverte" "Quantité de fruits" "Quantité de légumes" "Quantité de viande" "Quantité de restes"]
+          set dataToExport (list isDoorOpen fruitsQuantity vegetablesQuantity meatQuantity mealQuantity)
+        ]
+        if is-dishwasher? self[
+          set dataNames ["Cycle" "Quantité pastilles" "Température eau" "Degré de salissure"]
+          set dataToExport (list cycleMode pastillesQuantity waterTemperature dirtLevel)
+        ]
+      ]
+      let i 0
+      ifelse length lastDataExported = 0[
+        foreach dataToExport[
+          data ->
+          set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter (item i dataNames) ": " data "\n")
+          set i i + 1
+        ]
+      ][
+        foreach lastDataExported[
+          lastData ->
+          let currentData item i dataToExport
+          if lastData != currentData [
+            set toWrite (word toWrite (time:show currentDateTime "yyyy-MM-dd HH:mm:ss") fileColumnDelimiter dataSensorName fileColumnDelimiter (item i dataNames) ": " currentData "\n")
+          ]
+          set i i + 1
+        ]
+      ]
+      set lastDataExported dataToExport
+    ]
+  ]
+
 
 end
 
 ; TODO Ecriture des données
 to writeData
+  show toWrite
+  ifelse toWrite != ""[
 
+  ][
+    show toWrite
+  ]
+  set toWrite ""
 end
 
 ; Fonction GO
@@ -5141,6 +5658,17 @@ startAtMorning
 0
 1
 -1000
+
+INPUTBOX
+1171
+709
+1448
+769
+fileColumnDelimiter
+;
+1
+0
+String
 
 @#$#@#$#@
 ## WHAT IS IT?
