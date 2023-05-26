@@ -494,7 +494,6 @@ to-report getRoomName[inputTurtle]
 
     ]
     ;;; Porte
-    	;;; TODO Changer pour récup le patch direct après
     if pcolor = 6.3[
       let patch1 nobody
       let patch2 nobody
@@ -560,29 +559,28 @@ to setupDate
   ;;; Récupération date
   let datetimeString date-and-time
   ;;; Conversion mois
-  ;;; TODO Modifier en fonction du mois récupéré de datetimeString ( anglais par exemple )
   if substring datetimeString 19 22 = "jan"[
     set month "01"
   ]
-  if substring datetimeString 19 22 = "fev"[
+  if substring datetimeString 19 22 = "fev" or substring datetimeString 19 22 = "feb"[
     set month "02"
   ]
   if substring datetimeString 19 22 = "mar"[
     set month "03"
   ]
-  if substring datetimeString 19 22 = "avr"[
+  if substring datetimeString 19 22 = "avr" or substring datetimeString 19 22 = "apr"[
     set month "04"
   ]
-  if substring datetimeString 19 22 = "mai"[
+  if substring datetimeString 19 22 = "mai" or substring datetimeString 19 22 = "may"[
     set month "05"
   ]
   if substring datetimeString 19 22 = "jun"[
     set month "06"
   ]
-  if substring datetimeString 19 22 = "jui"[
+  if substring datetimeString 19 22 = "jui" or substring datetimeString 19 22 = "jul"[
     set month "07"
   ]
-  if substring datetimeString 19 22 = "aou"[
+  if substring datetimeString 19 22 = "aou" or substring datetimeString 19 22 = "aug"[
     set month "08"
   ]
   if substring datetimeString 19 22 = "sep"[
@@ -670,22 +668,22 @@ end
 to setupTemperature
   ;;;; Choix de la température de la journée en fonction de la saison
   ;;;; TODO Améliorer le choix de la température de la journée pour la faire varier un peu plus
-
+  let temperatureVariation random maxTemperatureVariation
   if season = "Winter" [
-    set targetTemperatureOutsideMin minTemperatureWinter + (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
-    set targetTemperatureOutsideMax maxTemperatureWinter - (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
+    set targetTemperatureOutsideMin minTemperatureWinter + temperatureVariation
+    set targetTemperatureOutsideMax maxTemperatureWinter - temperatureVariation
   ]
   if season = "Spring" [
-    set targetTemperatureOutsideMin minTemperatureSpring + (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
-    set targetTemperatureOutsideMax maxTemperatureSpring - (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
+    set targetTemperatureOutsideMin minTemperatureSpring + temperatureVariation
+    set targetTemperatureOutsideMax maxTemperatureSpring - temperatureVariation
   ]
   if season = "Summer" [
-    set targetTemperatureOutsideMin minTemperatureSummer + (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
-    set targetTemperatureOutsideMax maxTemperatureSummer - (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
+    set targetTemperatureOutsideMin minTemperatureSummer + temperatureVariation
+    set targetTemperatureOutsideMax maxTemperatureSummer - temperatureVariation
   ]
   if season = "Fall" [
-    set targetTemperatureOutsideMin minTemperatureFall + (random ((maxTemperatureFall - minTemperatureFall) / 2))
-    set targetTemperatureOutsideMax maxTemperatureFall - (random ((maxTemperatureFall - minTemperatureFall) / 2))
+    set targetTemperatureOutsideMin minTemperatureFall + temperatureVariation
+    set targetTemperatureOutsideMax maxTemperatureFall - temperatureVariation
   ]
 
   ;;;; Calcul du temps restant avant le prochain extremum
@@ -1834,9 +1832,24 @@ to setup
 
   set toWrite ""
   set dataFilePath nobody
-  set dataFilePath user-new-file
-  ;if dataFilePath WIP Mettre .csv si pas .csv
-  if dataFilePath != nobody[
+  let dataFilePathInput nobody
+  if saveData[
+    set dataFilePathInput user-new-file
+
+    if dataFilePathInput != nobody and dataFilePathInput != false[
+      set dataFilePath dataFilePathInput
+      show (position "." dataFilePath)
+      ifelse (position "." dataFilePath) != false [
+        if (substring dataFilePath (position "." dataFilePath) (length dataFilePath)) != ".csv"[
+          let dataFilePathWithoutExtension remove (word (substring dataFilePath (position "." dataFilePath) (length dataFilePath))) dataFilePath
+          set dataFilePath (word dataFilePathWithoutExtension ".csv")
+        ]
+      ][
+        set dataFilePath (word dataFilePath ".csv")
+      ]
+    ]
+  ]
+  if (saveData and dataFilePathInput != nobody and dataFilePathInput != false) or not saveData[
     ;; Initialisation variables globales
     ;;; Date et saison actuelle
     setupDate
@@ -1851,11 +1864,13 @@ to setup
     setupLightOutside
 
     ;;; Fichier
-    if file-exists? dataFilePath[
-      file-delete dataFilePath
+    if saveData[
+      if file-exists? dataFilePath[
+        file-delete dataFilePath
+      ]
+      file-open dataFilePath
+      file-print fileHeader
     ]
-    file-open dataFilePath
-    file-print fileHeader
 
     ;; Chargement des couleurs de patchs
     import-pcolors "appart_petit.png"
@@ -1895,8 +1910,9 @@ end
 
 ;; Passage jour suivant
 to newDay
-  file-close-all
-
+  if savedata[
+    file-close-all
+  ]
   ;;; Définition routine du jour
   readRoutine weekday
 
@@ -1917,8 +1933,9 @@ to newDay
     set season "Fall"
   ]
 
-  file-open dataFilePath
-
+  if savedata[
+    file-open dataFilePath
+  ]
 end
 
 ; Gestion de la lumière
@@ -2059,17 +2076,19 @@ to temperatureOutsideManagement
   if time:is-equal? currentDateTime dateTimeTemperatureMax[
     set temperatureOutside targetTemperatureOutsideMax
     set dateTimeTemperatureMin time:plus dateTimeTemperatureMin 1 "day"
+    ;;; Changement température cible
+    let temperatureVariation random maxTemperatureVariation
     if season = "Winter" [
-      set targetTemperatureOutsideMin minTemperatureWinter + (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
+      set targetTemperatureOutsideMin minTemperatureWinter + temperatureVariation
     ]
     if season = "Spring" [
-      set targetTemperatureOutsideMin minTemperatureSpring + (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
+      set targetTemperatureOutsideMin minTemperatureSpring + temperatureVariation
     ]
     if season = "Summer" [
-      set targetTemperatureOutsideMin minTemperatureSummer + (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
+      set targetTemperatureOutsideMin minTemperatureSummer + temperatureVariation
     ]
     if season = "Fall" [
-      set targetTemperatureOutsideMin minTemperatureFall + (random ((maxTemperatureFall - minTemperatureFall) / 2))
+      set targetTemperatureOutsideMin minTemperatureFall + temperatureVariation
     ]
     set secondsBetweenExtremums time:difference-between dateTimeTemperatureMax dateTimeTemperatureMin "seconds"
   ]
@@ -2077,17 +2096,19 @@ to temperatureOutsideManagement
   if time:is-equal? currentDateTime dateTimeTemperatureMin[
     set temperatureOutside targetTemperatureOutsideMin
     set dateTimeTemperatureMax time:plus dateTimeTemperatureMax 1 "day"
+
+    let temperatureVariation random maxTemperatureVariation
     if season = "Winter" [
-      set targetTemperatureOutsideMax maxTemperatureWinter - (random ((maxTemperatureWinter - minTemperatureWinter) / 10))
+      set targetTemperatureOutsideMax maxTemperatureWinter - temperatureVariation
     ]
     if season = "Spring" [
-      set targetTemperatureOutsideMax maxTemperatureSpring - (random ((maxTemperatureSpring - minTemperatureSpring) / 10))
+      set targetTemperatureOutsideMax maxTemperatureSpring - temperatureVariation
     ]
     if season = "Summer" [
-      set targetTemperatureOutsideMax maxTemperatureSummer - (random ((maxTemperatureSummer - minTemperatureSummer) / 10))
+      set targetTemperatureOutsideMax maxTemperatureSummer - temperatureVariation
     ]
     if season = "Fall" [
-      set targetTemperatureOutsideMax maxTemperatureFall - (random ((maxTemperatureFall - minTemperatureFall) / 2))
+      set targetTemperatureOutsideMax maxTemperatureFall - temperatureVariation
     ]
     set secondsBetweenExtremums time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
   ]
@@ -5087,17 +5108,21 @@ to go
   ;; Appel comportement station Roomba
   roombaStationBehaviour
 
-  ;; TODO Comportement Utilisateur
+  ;; Comportement Utilisateur
   userBehaviour
 
-  ;; TODO Comportement Objets
+  ;; Comportement Objets
   objectsBehaviour
 
-  ;; TODO Comportement Capteurs
+  ;; Comportement Capteurs
   sensorBehaviour
 
-  ;; TODO Ecriture des données
-  writeData
+  ifelse saveData[
+    ;; Ecriture des données
+    writeData
+  ][
+    set toWrite ""
+  ]
 
   ;;1 tick = 1 seconde
   incrementOneSecond
@@ -5289,7 +5314,7 @@ SLIDER
 minTemperatureWinter
 minTemperatureWinter
 -50
-maxTemperatureWinter
+maxTemperatureWinter - maxTemperatureVariation
 -14.0
 1
 1
@@ -5313,9 +5338,9 @@ SLIDER
 323
 maxTemperatureWinter
 maxTemperatureWinter
-minTemperatureWinter
+minTemperatureWinter + maxTemperatureVariation
 50
-18.0
+8.0
 1
 1
 °C
@@ -5338,7 +5363,7 @@ SLIDER
 360
 maxTemperatureSpring
 maxTemperatureSpring
-minTemperatureSpring
+minTemperatureSpring + maxTemperatureVariation
 50
 23.0
 1
@@ -5354,7 +5379,7 @@ SLIDER
 minTemperatureSpring
 minTemperatureSpring
 -50
-maxTemperatureSpring
+maxTemperatureSpring - maxTemperatureVariation
 11.0
 1
 1
@@ -5379,7 +5404,7 @@ SLIDER
 minTemperatureSummer
 minTemperatureSummer
 -50
-maxTemperatureSummer
+maxTemperatureSummer - maxTemperatureVariation
 14.0
 1
 1
@@ -5393,7 +5418,7 @@ SLIDER
 404
 maxTemperatureSummer
 maxTemperatureSummer
-minTemperatureSummer
+minTemperatureSummer + maxTemperatureVariation
 50
 29.0
 1
@@ -5409,7 +5434,7 @@ SLIDER
 minTemperatureFall
 minTemperatureFall
 -50
-maxTemperatureFall
+maxTemperatureFall - maxTemperatureVariation
 6.0
 1
 1
@@ -5423,9 +5448,9 @@ SLIDER
 442
 maxTemperatureFall
 maxTemperatureFall
-minTemperatureFall
+minTemperatureFall + maxTemperatureVariation
 50
-16.0
+15.0
 1
 1
 °C
@@ -5980,6 +6005,52 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+85
+452
+278
+485
+maxTemperatureVariation
+maxTemperatureVariation
+0
+10
+6.0
+1
+1
+NIL
+HORIZONTAL
+
+SWITCH
+298
+30
+407
+63
+saveData
+saveData
+1
+1
+-1000
+
+PLOT
+730
+616
+930
+766
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot temperatureOutside"
+"pen-1" 1.0 0 -13791810 true "" "plot targettemperatureOutsidemin"
+"pen-2" 1.0 0 -2674135 true "" "plot targettemperatureOutsidemax"
 
 @#$#@#$#@
 ## WHAT IS IT?
