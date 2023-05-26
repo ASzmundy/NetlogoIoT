@@ -1836,7 +1836,6 @@ to setup
 
     if dataFilePathInput != nobody and dataFilePathInput != false[
       set dataFilePath dataFilePathInput
-      show (position "." dataFilePath)
       ifelse (position "." dataFilePath) != false [
         if (substring dataFilePath (position "." dataFilePath) (length dataFilePath)) != ".csv"[
           let dataFilePathWithoutExtension remove (word (substring dataFilePath (position "." dataFilePath) (length dataFilePath))) dataFilePath
@@ -1939,8 +1938,8 @@ to newDay
 
   ;;; Gestion anniversaires
   ask Users[
-   if month = birthMonth and day = birthDay[
-     set age age + 1
+    if month = birthMonth and day = birthDay[
+      set age age + 1
     ]
   ]
 
@@ -1951,6 +1950,9 @@ to newDay
       set dataFilePath insert-item (position "." dataFilePath) dataFilePath time:show currentDateTime "yyyy_MM_dd"
     ]
     file-open dataFilePath
+    if oneFilePerDay[
+      file-print fileHeader
+    ]
   ]
 end
 
@@ -4539,7 +4541,7 @@ to objectsBehaviour
       set color cyan
       ;;;; Si vient d'être allumé
       if timeLeft = 0[
-       set timeLeft 60 * 35
+        set timeLeft 60 * 35
       ]
       ask my-containLinks with [is-laundry? other-end][
         ask other-end[
@@ -4553,10 +4555,10 @@ to objectsBehaviour
 
       set timeLeft timeLeft - 1
       if timeLeft = 0[
-       set isActive false
+        set isActive false
       ]
     ][
-     set color black
+      set color black
     ]
   ]
 
@@ -4590,7 +4592,7 @@ to objectsBehaviour
     if isActive[
       ;;;; Si vient d'être allumé
       if timeLeft = 0[
-       set timeLeft 60 * 20
+        set timeLeft 60 * 20
       ]
       ;;;; Montée température
       if temperature < 80[
@@ -4608,7 +4610,7 @@ to objectsBehaviour
 
       set timeLeft timeLeft - 1
       if timeLeft = 0[
-       set isActive false
+        set isActive false
       ]
     ]
   ]
@@ -4837,6 +4839,15 @@ to writeMessage [inputSensor message]
   ]
 end
 
+; Transforme une donnée en entrée en sa version arrondie avec décimales configurable si c'est un nombre
+to-report roundMessage[inputMessage inputDecimals]
+  let toreturn inputMessage
+  if is-number? inputMessage[
+   set toreturn precision inputMessage inputDecimals
+  ]
+  report toreturn
+end
+
 ; Comportement Capteurs
 to sensorBehaviour
   ;; Capteurs CO
@@ -4855,13 +4866,13 @@ to sensorBehaviour
 
 
     ifelse lastCOExported = nobody[
-      writeMessage self currentData
+      writeMessage self roundMessage currentData maxDataDecimals
     ][
-      if lastCOExported != currentData [
-        writeMessage self currentData
+      if lastCOExported != roundMessage currentData maxDataDecimals [
+        writeMessage self roundMessage currentData maxDataDecimals
       ]
     ]
-    set lastCOExported currentData
+    set lastCOExported roundMessage currentData maxDataDecimals
   ]
 
   ;; Capteurs fumée
@@ -4878,13 +4889,13 @@ to sensorBehaviour
       set currentData SmokePrincipalRooms
     ]
     ifelse lastSmokeExported = nobody[
-      writeMessage self currentData
+      writeMessage self roundMessage currentData maxDataDecimals
     ][
-      if lastSmokeExported != currentData [
-        writeMessage self currentData
+      if lastSmokeExported != roundMessage currentData maxDataDecimals[
+        writeMessage self roundMessage currentData maxDataDecimals
       ]
     ]
-    set lastSmokeExported currentData
+    set lastSmokeExported roundMessage currentData maxDataDecimals
   ]
 
   ;; Capteur température
@@ -4904,10 +4915,10 @@ to sensorBehaviour
         set currentData temperaturePrincipalRooms
       ]
     ]
-    if currentData != lastTemperatureExported[
-      writeMessage self currentData
+    if roundMessage currentData maxDataDecimals != lastTemperatureExported[
+      writeMessage self roundMessage currentData maxDataDecimals
     ]
-    set lastTemperatureExported currentData
+    set lastTemperatureExported roundMessage currentData maxDataDecimals
   ]
 
   ;; Capteur luminosite
@@ -4927,10 +4938,10 @@ to sensorBehaviour
         set currentData luminosityPrincipalRooms
       ]
     ]
-    if currentData != lastLuminosityExported[
-      writeMessage self currentData
+    if roundMessage currentData maxDataDecimals != lastLuminosityExported[
+      writeMessage self roundMessage currentData maxDataDecimals
     ]
-    set lastLuminosityExported currentData
+    set lastLuminosityExported roundMessage currentData maxDataDecimals
   ]
 
   ;; Capteur ouverture porte fenêtre
@@ -5087,23 +5098,29 @@ to sensorBehaviour
         ]
       ]
       let i 0
+      let dataToExportCleaned dataToExport
       ifelse length lastDataExported = 0[
+        ;;; Cas 1er export
         foreach dataToExport[
           data ->
-          writeMessage currentSensor (word (item i dataNames) ": " data)
+          let dataTmp (word (item i dataNames) ": " roundMessage data maxDataDecimals)
+          writeMessage currentSensor dataTmp
+          set dataToExportCleaned replace-item i dataToExport roundMessage data maxDataDecimals
           set i i + 1
         ]
       ][
+        ;;; Comparaison avec lastDataExported
         foreach lastDataExported[
           lastData ->
           let currentData item i dataToExport
-          if lastData != currentData [
-            writeMessage currentSensor (word (item i dataNames) ": " currentData)
+          if lastData != roundMessage currentData maxDataDecimals[
+            writeMessage currentSensor roundMessage currentData maxDataDecimals
+            set dataToExportCleaned replace-item i dataToExport roundMessage currentData maxDataDecimals
           ]
           set i i + 1
         ]
       ]
-      set lastDataExported dataToExport
+      set lastDataExported dataToExportCleaned
     ]
   ]
 end
@@ -5115,8 +5132,6 @@ to writeData
   ]
   set toWrite ""
 end
-
-
 
 ; Fonction GO
 to go
@@ -5168,10 +5183,22 @@ to go
 end
 ; FIN GO
 
-;Sauvegarde fichier en cours d'exécution
+; Sauvegarde fichier en cours d'exécution
 to save
   file-close-all
   file-open dataFilePath
+end
+
+; Simulation une journée
+to simulate
+  setup
+  let ticksToSimulate (daysToSimulate * 24 * 60 * 60)
+  let ticksElapsed 0
+  while [ticksElapsed <= ticksToSimulate][
+    go
+    set ticksElapsed ticksElapsed + 1
+  ]
+  file-close-all
 end
 
 
@@ -5205,7 +5232,7 @@ GRAPHICS-WINDOW
 1
 1
 ticks
-30.0
+60.0
 
 BUTTON
 22
@@ -5809,20 +5836,20 @@ dirtKitchen
 11
 
 TEXTBOX
-642
-81
-792
-99
+731
+492
+881
+510
 Roomba
 11
 0.0
 1
 
 SLIDER
-611
-118
-783
-151
+666
+515
+838
+548
 lowBattery
 lowBattery
 1
@@ -5935,10 +5962,10 @@ weekDay
 11
 
 TEXTBOX
-568
-86
-718
-104
+657
+497
+807
+515
 NIL
 11
 0.0
@@ -6011,7 +6038,7 @@ INPUTBOX
 1448
 769
 fileColumnDelimiter
-;
+,
 1
 0
 String
@@ -6022,7 +6049,7 @@ INPUTBOX
 1418
 700
 fileHeader
-Temps;NomCapteur;Message
+Temps,NomCapteur,Message
 1
 0
 String
@@ -6080,6 +6107,53 @@ oneFilePerDay
 0
 1
 -1000
+
+SLIDER
+704
+24
+876
+57
+daysToSimulate
+daysToSimulate
+1
+365
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+614
+23
+691
+56
+NIL
+simulate
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+913
+653
+1085
+686
+maxDataDecimals
+maxDataDecimals
+0
+5
+2.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
