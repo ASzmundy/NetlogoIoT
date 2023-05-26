@@ -667,7 +667,6 @@ end
 ;; Temperature
 to setupTemperature
   ;;;; Choix de la température de la journée en fonction de la saison
-  ;;;; TODO Améliorer le choix de la température de la journée pour la faire varier un peu plus
   let temperatureVariation random maxTemperatureVariation
   if season = "Winter" [
     set targetTemperatureOutsideMin minTemperatureWinter + temperatureVariation
@@ -728,7 +727,6 @@ to setupTemperature
 end
 
 ;; Luminosité
-;;TODO GESTION HEURE ETE/HIVER
 to setupLightOutside
   ;;; Lecture fichier Ephéméride
   readEphemeride month day
@@ -1235,7 +1233,7 @@ to setupFurniture
       set color yellow
       set size 0.6
       set luminosity 250
-      set lampColor 2700 ;en K ;TODO Couleurs lights différentes selon pièces
+      set lampColor 2700 ;en K
       set isActive false
     ]
   ]
@@ -1711,7 +1709,7 @@ to setupSensors
         ]
       ]
     ]
-  ];TODO TEMPERATURE DRYER
+  ]
   ask dryers[
     ask patch-here[
       sprout-datasensors 1[
@@ -1753,7 +1751,7 @@ to setupUser
       set cleanliness 100
       set isSleeping false
 
-      ;;; Anniversaire TODO VARIABILISER
+      ;;; Anniversaire
       set age 21
       set birthDay 16
       set birthMonth 6
@@ -1864,7 +1862,12 @@ to setup
     setupLightOutside
 
     ;;; Fichier
+
     if saveData[
+      ;;; Insertion date dans nom de fichier
+      if oneFilePerDay[
+        set dataFilePath insert-item (position "." dataFilePath) dataFilePath time:show currentDateTime "yyyy_MM_dd"
+      ]
       if file-exists? dataFilePath[
         file-delete dataFilePath
       ]
@@ -1933,7 +1936,20 @@ to newDay
     set season "Fall"
   ]
 
+
+  ;;; Gestion anniversaires
+  ask Users[
+   if month = birthMonth and day = birthDay[
+     set age age + 1
+    ]
+  ]
+
   if savedata[
+    if oneFilePerDay[
+      let yesterday time:plus currentDateTime -1 "days"
+      set dataFilePath remove (time:show yesterday "yyyy_MM_dd") dataFilePath
+      set dataFilePath insert-item (position "." dataFilePath) dataFilePath time:show currentDateTime "yyyy_MM_dd"
+    ]
     file-open dataFilePath
   ]
 end
@@ -2207,7 +2223,7 @@ to insideTemperatureManagement
   let avgTemperature 0
   ;;;; Entrée-Salle de bain
   set avgTemperature (temperatureEntrance + temperatureBathroom) / 2
-  set temperatureEntrance temperatureEntrance - ((temperatureEntrance - avgTemperature) / (isolation / 10)) ;;TODO Revoir isolation intérieure (variable isolationInterieur au lieu de diviser par 10 ?)
+  set temperatureEntrance temperatureEntrance - ((temperatureEntrance - avgTemperature) / (isolation / 10))
   set temperatureBathroom temperatureBathroom - ((temperatureBathroom - avgTemperature) / (isolation / 10))
 
   ;;;; Entrée-PiècesPrincipales
@@ -2648,7 +2664,7 @@ to doTask [inputUser]
       if currentTaskAction = "go to store"[
         let isFinished false
         ask currentTask [
-          if time >= ( 60 * 60 )[ ;;;;; Durée 1H TODO Rendre variable
+          if time >= ( 60 * 60 )[ ;;;;; Durée 1h
             set isFinished true
           ]
         ]
@@ -4111,7 +4127,7 @@ to userBehaviour
           let nextTask createTask currentUser "take coffee" one-of coffeeMakers 4
         ]
 
-        ;;;;; TODO Ajouter prochaines actions routines ici (comme dans fichier)
+        ;;;;; TODO Les prochaines actions routines seront à mettre ici (comme dans fichier routine)
 
         ;;;;; Récupération prochaine routine
         set nextRoutineIndex nextRoutineIndex - 1
@@ -4351,7 +4367,16 @@ to objectsBehaviour
     ]
   ]
 
-  ;; TODO Volets
+  ;; Volets automatiques
+  ask shutters[
+    ifelse luminosityOutside <= 0[
+      set isOpen false
+      set color grey
+    ][
+      set isOpen true
+      set color cyan
+    ]
+  ]
 
   ;; Comportement lave-vaisselle
   ;; TODO Revoir système de cycles
@@ -4540,6 +4565,14 @@ to objectsBehaviour
     let laundryCount 0
     let humidities []
 
+    ;;; Gestion température
+    ifelse temperature >= temperatureBathroom[
+      set temperature temperature - ( (temperature - temperatureBathroom) / ( 60 * 60 * 2 ))
+    ][
+      set temperature temperature + ( (temperatureBathroom - temperature) / ( 60 * 60 * 2))
+    ]
+
+
     ask my-containLinks with [is-laundry? other-end][
       set laundryCount laundryCount + [weight] of other-end
       set humidities insert-item 0 humidities [humidity] of other-end
@@ -4559,6 +4592,11 @@ to objectsBehaviour
       if timeLeft = 0[
        set timeLeft 60 * 20
       ]
+      ;;;; Montée température
+      if temperature < 80[
+        set temperature temperature + ( 80 / (60 * 3) )
+      ]
+
       ask my-containLinks with [is-laundry? other-end][
         ask other-end[
           set humidity humidity - ( 100 / ( 15 * 60 ) )
@@ -5163,8 +5201,8 @@ GRAPHICS-WINDOW
 17
 0
 10
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -6028,29 +6066,20 @@ SWITCH
 63
 saveData
 saveData
-1
+0
 1
 -1000
 
-PLOT
-730
-616
-930
-766
-plot 1
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot temperatureOutside"
-"pen-1" 1.0 0 -13791810 true "" "plot targettemperatureOutsidemin"
-"pen-2" 1.0 0 -2674135 true "" "plot targettemperatureOutsidemax"
+SWITCH
+419
+30
+554
+63
+oneFilePerDay
+oneFilePerDay
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
