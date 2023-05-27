@@ -469,11 +469,11 @@ to-report getRoomName[inputTurtle]
     if pcolor = 23.3 or pcolor = 105[
       let pcolorTmp pcolor
       let patchTmp patch-here
-      while [pcolorTmp = 23.3 or pcolorTmp = 105 or pcolorTmp = 0][
-        set pcolorTmp [pcolor] of patchTmp
+      while [pcolorTmp = 6.3 or pcolorTmp = 23.3 or pcolorTmp = 105 or pcolorTmp = 0][
         ask patchTmp[
-          set patchTmp one-of neighbors4 with[pcolor != 105 and pcolor != 0]
+          set patchTmp one-of neighbors4 with[pcolor != 105 and pcolor != 6.3 and pcolor != 0]
         ]
+        set pcolorTmp [pcolor] of patchTmp
       ]
 
       if pcolorTmp = 84.9[
@@ -491,7 +491,6 @@ to-report getRoomName[inputTurtle]
       if pcolorTmp = 14.4[
         set roomName "DiningRoom"
       ]
-
     ]
     ;;; Porte
     if pcolor = 6.3[
@@ -1485,6 +1484,7 @@ to setupSensors
       set size 0.1
     ]
   ]
+
   ;;; Capteur Allumage
   ask turtles with [ breed = showers
     or breed = toilets
@@ -1502,8 +1502,8 @@ to setupSensors
     or breed = hoods
     or breed = washingMachines
     or breed = dryers
-    or breed = heaters
-    or breed = ACs
+    ;or breed = heaters
+    ;or breed = ACs
     or breed = alarms
     or breed = shutters
   ][
@@ -1516,28 +1516,30 @@ to setupSensors
         set color blue
         set size 0.1
         ;;Lien Capteur
-        create-sensorLink-to one-of other turtles-here with [ (breed = showers
-          or breed = toilets
-          or breed = sinks
-          or breed = beds
-          or breed = coffeeMakers
-          or breed = roombaStations
-          or breed = roombas
-          or breed = lights
-          or breed = microwaves
-          or breed = ovens
-          or breed = dishwashers
-          or breed = fridges
-          or breed = hotplates
-          or breed = hoods
-          or breed = washingMachines
-          or breed = dryers
-          or breed = heaters
-          or breed = ACs
-          or breed = alarms
-          or breed = shutters
+        create-sensorLink-to one-of other turtles-here with [
+          (
+            breed = showers
+            or breed = toilets
+            or breed = sinks
+            or breed = beds
+            or breed = coffeeMakers
+            or breed = roombaStations
+            or breed = roombas
+            or breed = lights
+            or breed = microwaves
+            or breed = ovens
+            or breed = dishwashers
+            or breed = fridges
+            or breed = hotplates
+            or breed = hoods
+            or breed = washingMachines
+            or breed = dryers
+            ;or breed = heaters
+            ;or breed = ACs
+            or breed = alarms
+            or breed = shutters
           )
-          and count my-in-sensorLinks = 0
+          and count my-in-sensorLinks with[is-triggerSensor? other-end] = 0
         ][
           set lastDataExported nobody
         ]
@@ -4381,12 +4383,14 @@ to objectsBehaviour
   ]
 
   ;; Comportement lave-vaisselle
-  ;; TODO Revoir système de cycles
   ask dishwashers[
     ifelse any?(my-containLinks with[is-dish? other-end])[
       let dirtlevels []
       ask my-containLinks with[is-dish? other-end][
         ask other-end[
+          ask my-containLinks with[is-coffee? other-end][
+            ask other-end[die]
+          ]
           set dirtlevels insert-item 0 dirtlevels (100 - cleanliness)
         ]
       ]
@@ -4679,7 +4683,17 @@ to objectsBehaviour
     ]
   ]
 
-  ;; TODO Comportement lit
+  ;; Comportement lit
+  ask beds[
+    ifelse any?(Users-here)[
+      set isActive true
+      set sleepQuality 100
+    ][
+      set isActive false
+      set sleepQuality 100
+    ]
+
+  ]
 
   ;; Comportement repas
   ask meals[
@@ -5061,8 +5075,8 @@ to sensorBehaviour
           set dataToExport (list dirtDegree laundryWeight)
         ]
         if is-dryer? self[
-          set dataNames ["Humidité" "Poids linge"]
-          set dataToExport (list humidity laundryWeight)
+          set dataNames ["Humidité" "Température" "Poids linge"]
+          set dataToExport (list humidity temperature laundryWeight)
         ]
         if is-bed? self[
           set dataNames ["Qualité du sommeil"]
@@ -5099,24 +5113,26 @@ to sensorBehaviour
       ]
       let i 0
       let dataToExportCleaned dataToExport
+
       ifelse length lastDataExported = 0[
         ;;; Cas 1er export
         foreach dataToExport[
           data ->
           let dataTmp (word (item i dataNames) ": " roundMessage data maxDataDecimals)
           writeMessage currentSensor dataTmp
-          set dataToExportCleaned replace-item i dataToExport roundMessage data maxDataDecimals
+          set dataToExportCleaned replace-item i dataToExport (roundMessage data maxDataDecimals)
           set i i + 1
         ]
       ][
         ;;; Comparaison avec lastDataExported
         foreach lastDataExported[
-          lastData ->
-          let currentData item i dataToExport
-          if lastData != roundMessage currentData maxDataDecimals[
-            writeMessage currentSensor roundMessage currentData maxDataDecimals
-            set dataToExportCleaned replace-item i dataToExport roundMessage currentData maxDataDecimals
+          lastData -> ;;;; lastData = élément de lastDataExported du DataSensor
+          let data item i dataToExport ;;;; data = élément de dataToExport associé à lastData
+
+          if lastdata != (roundMessage data maxDataDecimals)[
+            writeMessage currentSensor (word (item i dataNames) ": " (roundMessage data maxDataDecimals))
           ]
+          set dataToExportCleaned replace-item i dataToExportCleaned (roundMessage data maxDataDecimals)
           set i i + 1
         ]
       ]
@@ -5189,7 +5205,7 @@ to save
   file-open dataFilePath
 end
 
-; Simulation une journée
+; Simulation avec limite
 to simulate
   setup
   let ticksToSimulate (daysToSimulate * 24 * 60 * 60)
@@ -5203,7 +5219,7 @@ end
 
 
 
-;TODO Pour lancer avec python https://pynetlogo.readthedocs.io/en/latest/_docs/introduction.html
+;TODO Pour lancer avec python https://pynetlogo.readthedocs.io/en/latest/
 
 ;COPYRIGHT Alexis Szmundy 2023
 @#$#@#$#@
@@ -5430,7 +5446,7 @@ maxTemperatureSpring
 maxTemperatureSpring
 minTemperatureSpring + maxTemperatureVariation
 50
-23.0
+24.0
 1
 1
 °C
@@ -5445,7 +5461,7 @@ minTemperatureSpring
 minTemperatureSpring
 -50
 maxTemperatureSpring - maxTemperatureVariation
-11.0
+12.0
 1
 1
 °C
@@ -5470,7 +5486,7 @@ minTemperatureSummer
 minTemperatureSummer
 -50
 maxTemperatureSummer - maxTemperatureVariation
-14.0
+16.0
 1
 1
 °C
@@ -5679,7 +5695,7 @@ minTemperatureHour
 minTemperatureHour
 0
 maxTemperatureHour
-3.0
+9.0
 1
 1
 h
@@ -5694,7 +5710,7 @@ maxTemperatureHour
 maxTemperatureHour
 minTemperatureHour
 23
-16.0
+18.0
 1
 1
 h
@@ -6117,7 +6133,7 @@ daysToSimulate
 daysToSimulate
 1
 365
-1.0
+17.0
 1
 1
 NIL
