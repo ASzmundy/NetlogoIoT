@@ -4690,9 +4690,8 @@ to objectsBehaviour
       set sleepQuality 100
     ][
       set isActive false
-      set sleepQuality 100
+      set sleepQuality 0
     ]
-
   ]
 
   ;; Comportement repas
@@ -5695,7 +5694,7 @@ minTemperatureHour
 minTemperatureHour
 0
 maxTemperatureHour
-9.0
+3.0
 1
 1
 h
@@ -5710,7 +5709,7 @@ maxTemperatureHour
 maxTemperatureHour
 minTemperatureHour
 23
-18.0
+16.0
 1
 1
 h
@@ -6133,7 +6132,7 @@ daysToSimulate
 daysToSimulate
 1
 365
-17.0
+15.0
 1
 1
 NIL
