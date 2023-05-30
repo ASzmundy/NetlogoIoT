@@ -5367,10 +5367,10 @@ temperatureOutside
 11
 
 TEXTBOX
-350
-256
-500
-274
+300
+264
+372
+282
 Températures
 11
 0.0
@@ -5392,10 +5392,10 @@ maxTemperatureWinter - maxTemperatureVariation
 HORIZONTAL
 
 TEXTBOX
-332
-296
-482
-314
+351
+300
+382
+318
 Hiver
 11
 85.0
@@ -5417,10 +5417,10 @@ minTemperatureWinter + maxTemperatureVariation
 HORIZONTAL
 
 TEXTBOX
-331
-335
-481
-353
+350
+339
+403
+357
 Printemps
 11
 65.0
@@ -5457,10 +5457,10 @@ maxTemperatureSpring - maxTemperatureVariation
 HORIZONTAL
 
 TEXTBOX
-336
-375
-486
-393
+355
+379
+381
+397
 Eté
 11
 45.0
@@ -5527,10 +5527,10 @@ minTemperatureFall + maxTemperatureVariation
 HORIZONTAL
 
 TEXTBOX
-335
-417
-485
-435
+352
+421
+400
+439
 Automne
 11
 24.0
@@ -5592,10 +5592,10 @@ luminosityPrincipalRooms
 11
 
 SLIDER
-37
-148
-209
-181
+20
+166
+192
+199
 outsideMaxLuminosity
 outsideMaxLuminosity
 0
@@ -5607,10 +5607,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-16
-190
-141
-235
+19
+203
+144
+248
 Heure lever du soleil
 sunriseHour
 17
@@ -5618,10 +5618,10 @@ sunriseHour
 11
 
 MONITOR
-193
-189
-334
-234
+150
+203
+291
+248
 Heure coucher du soleil
 sunsetHour
 17
@@ -5630,29 +5630,29 @@ sunsetHour
 
 TEXTBOX
 94
-120
-244
-138
+148
+146
+166
 Luminosité
 11
 0.0
 1
 
 TEXTBOX
-83
-496
-233
-514
+117
+517
+170
+535
 Utilisateur
 11
 0.0
 1
 
 CHOOSER
-11
-519
-149
-564
+45
+540
+183
+585
 TypeHandicap
 TypeHandicap
 "Aucun"
@@ -5676,10 +5676,10 @@ NIL
 1
 
 SLIDER
-455
-290
-627
-323
+449
+314
+621
+347
 minTemperatureHour
 minTemperatureHour
 0
@@ -5691,10 +5691,10 @@ h
 HORIZONTAL
 
 SLIDER
-458
-337
-630
-370
+448
+360
+620
+393
 maxTemperatureHour
 maxTemperatureHour
 minTemperatureHour
@@ -5706,10 +5706,10 @@ h
 HORIZONTAL
 
 SLIDER
-457
-410
-629
-443
+668
+312
+840
+345
 isolation
 isolation
 1
@@ -5721,30 +5721,30 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-493
-388
-643
-406
+704
+290
+800
+308
 Qualité de l'isolation
 11
 0.0
 1
 
 TEXTBOX
-738
-258
-888
-276
-Puissances Chauffage/Clim
+918
+248
+995
+266
+Chauffage/Clim
 11
 0.0
 1
 
 SLIDER
-711
-287
-883
-320
+865
+273
+1037
+306
 heaterPower
 heaterPower
 0
@@ -5756,10 +5756,10 @@ W
 HORIZONTAL
 
 SLIDER
-712
-330
-884
-363
+866
+316
+1038
+349
 ACPower
 ACPower
 0
@@ -5771,10 +5771,10 @@ W
 HORIZONTAL
 
 SLIDER
-709
-407
-881
-440
+867
+357
+1039
+390
 thermostat
 thermostat
 10
@@ -5841,20 +5841,20 @@ dirtKitchen
 11
 
 TEXTBOX
-731
-492
-881
-510
+102
+718
+252
+736
 Roomba
 11
 0.0
 1
 
 SLIDER
-666
-515
-838
-548
+37
+741
+209
+774
 lowBattery
 lowBattery
 1
@@ -5866,10 +5866,10 @@ lowBattery
 HORIZONTAL
 
 SLIDER
-46
-643
-218
-676
+493
+544
+665
+577
 nutritionFruitMin
 nutritionFruitMin
 1
@@ -5881,10 +5881,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-255
-643
-427
-676
+679
+544
+851
+577
 nutritionFruitMax
 nutritionFruitMax
 nutritionFruitMin
@@ -5896,25 +5896,25 @@ NIL
 HORIZONTAL
 
 SLIDER
-43
-696
-215
-729
+490
+597
+662
+630
 nutritionVegetableMin
 nutritionVegetableMin
 0
 nutritionVegetableMax
-18.0
+19.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-254
-696
-428
-729
+678
+597
+852
+630
 nutritionVegetableMax
 nutritionVegetableMax
 nutritionVegetableMin
@@ -5926,10 +5926,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-50
-745
-222
-778
+497
+646
+669
+679
 nutritionMeatMin
 nutritionMeatMin
 0
@@ -5941,10 +5941,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-273
-742
-445
-775
+682
+647
+854
+680
 nutritionMeatMax
 nutritionMeatMax
 nutritionMeatMin
@@ -5967,10 +5967,10 @@ weekDay
 11
 
 TEXTBOX
-657
-497
-807
-515
+28
+723
+178
+741
 NIL
 11
 0.0
@@ -5994,10 +5994,10 @@ NIL
 1
 
 MONITOR
-172
-509
-462
-554
+18
+599
+308
+644
 NIL
 routineTimes
 17
@@ -6005,10 +6005,10 @@ routineTimes
 11
 
 MONITOR
-171
-557
-582
-602
+17
+647
+428
+692
 NIL
 routineActions
 17
@@ -6016,10 +6016,10 @@ routineActions
 11
 
 MONITOR
-465
-509
-578
-554
+311
+599
+424
+644
 NIL
 nextRoutineIndex
 17
@@ -6027,10 +6027,10 @@ nextRoutineIndex
 11
 
 SWITCH
-1137
-576
-1276
-609
+13
+98
+152
+131
 startAtMorning
 startAtMorning
 0
@@ -6038,10 +6038,10 @@ startAtMorning
 -1000
 
 INPUTBOX
-1171
-709
-1448
-769
+976
+682
+1253
+742
 fileColumnDelimiter
 ,
 1
@@ -6049,10 +6049,10 @@ fileColumnDelimiter
 String
 
 INPUTBOX
-1171
-640
-1418
-700
+976
+613
+1223
+673
 fileHeader
 Temps,NomCapteur,Message
 1
@@ -6077,10 +6077,10 @@ NIL
 1
 
 SLIDER
-85
-452
-278
-485
+20
+453
+213
+486
 maxTemperatureVariation
 maxTemperatureVariation
 0
@@ -6092,10 +6092,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-298
-30
-407
-63
+268
+15
+377
+48
 saveData
 saveData
 1
@@ -6103,10 +6103,10 @@ saveData
 -1000
 
 SWITCH
-419
-30
-554
-63
+389
+15
+524
+48
 oneFilePerDay
 oneFilePerDay
 1
@@ -6114,10 +6114,10 @@ oneFilePerDay
 -1000
 
 SLIDER
-704
-24
-876
-57
+355
+65
+527
+98
 daysToSimulate
 daysToSimulate
 1
@@ -6129,10 +6129,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-614
-23
-691
-56
+265
+64
+342
+97
 NIL
 simulate
 NIL
@@ -6146,10 +6146,10 @@ NIL
 1
 
 SLIDER
-913
-653
-1085
-686
+979
+747
+1151
+780
 maxDataDecimals
 maxDataDecimals
 0
@@ -6159,6 +6159,36 @@ maxDataDecimals
 1
 NIL
 HORIZONTAL
+
+TEXTBOX
+531
+291
+558
+309
+Pics
+11
+0.0
+1
+
+TEXTBOX
+1053
+593
+1203
+611
+Fichier de données
+11
+0.0
+1
+
+TEXTBOX
+648
+513
+705
+531
+Nourriture
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
