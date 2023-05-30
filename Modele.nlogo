@@ -4,16 +4,17 @@ extensions [time csv]
 ; VARIABLES PATCHS POUR PATHFINDING
 patches-own
 [
-  parent-patch ; patch's predecessor
-  f ; the value of knowledge plus heuristic cost function f()
-  g ; the value of knowledge cost function g()
-  h ; the value of heuristic cost function h()
+  parent-patch ;; Prédécesseur du patch
+  ;; Variables pour A*
+  f
+  g
+  h
 ]
 
 
 ; VARIABLES GLOBALES
 globals[
-  ;;; Date et heure
+  ;; Date et heure
   currentDateTime
   weekday ;;;; Jour de la semaine (1 = Lundi, 7 = Dimanche)
   day
@@ -24,12 +25,12 @@ globals[
   second
   season
 
-  ;;; Routine
+  ;; Routine
   routineTimes
   routineActions
   nextRoutineIndex
 
-  ;;; Gestion particules
+  ;; Gestion particules
   smokePrincipalRooms
   smokeEntrance
   smokeBathroom
@@ -37,7 +38,7 @@ globals[
   COEntrance
   COBathroom
 
-  ;;; Gestion température
+  ;; Gestion température
   temperaturePrincipalRooms
   temperatureEntrance
   temperatureBathroom
@@ -48,7 +49,7 @@ globals[
   dateTimeTemperatureMax ;;;; Temps du pic haut de température
   secondsBetweenExtremums
 
-  ;;; Gestion luminosité
+  ;; Gestion luminosité
   luminosityPrincipalRooms
   luminosityEntrance
   luminosityBathroom
@@ -59,14 +60,14 @@ globals[
   datetimeSunset
   isNight ;;;; True si Nuit/Aube False si Jour/Crépuscule
 
-  ;;; Gestion saleté
+  ;; Gestion saleté
   dirtEntrance
   dirtBedroom
   dirtDiningRoom
   dirtKitchen
   dirtBathroom
 
-  ;;; Données à écrire
+  ;; Données à écrire
   dataFilePath
   toWrite
 ]
@@ -281,8 +282,6 @@ directed-link-breed [containLinks containLink]
 ;; Links utilisateurs
 ;;; Porte
 directed-link-breed [carryLinks carryLink]
-;;; Utilise
-directed-link-breed [useLinks useLink]
 ;;; Tache
 directed-link-breed [taskLinks taskLink]
 taskLinks-own[
@@ -665,7 +664,7 @@ end
 
 ;; Temperature
 to setupTemperature
-  ;;;; Choix de la température de la journée en fonction de la saison
+  ;;; Choix de la température de la journée en fonction de la saison
   let temperatureVariation random maxTemperatureVariation
   if season = "Winter" [
     set targetTemperatureOutsideMin minTemperatureWinter + temperatureVariation
@@ -684,24 +683,24 @@ to setupTemperature
     set targetTemperatureOutsideMax maxTemperatureFall - temperatureVariation
   ]
 
-  ;;;; Calcul du temps restant avant le prochain extremum
-  ;;;;; Calcul des datetimes extremums
+  ;;; Calcul du temps restant avant le prochain extremum
+  ;;;; Calcul des datetimes extremums
   ifelse hour < maxTemperatureHour
   [
     set dateTimeTemperatureMin time:create (word year "-" month "-" day " " minTemperatureHour)
   ][
-    ;;;;;; Si setup lancé après heure max, mettre le pic au day suivant
+    ;;;;; Si setup lancé après heure max, mettre le pic au day suivant
     set dateTimeTemperatureMin time:create (word (time:get "year" currentDateTime) "-" (time:get "month" currentDateTime) "-" ((time:get "day" currentDateTime) + 1) " " minTemperatureHour)
   ]
   set dateTimeTemperatureMax time:create (word year "-" month "-" day " " maxTemperatureHour)
 
-  ;;;;; Calcul du temps restant en secondes
+  ;;;; Calcul du temps restant en secondes
   let secondsBeforeExtremum 0
-  ;;;;;; Si après heure de la température max, utiliser l'heure de la température min du jour suivant (déjà calculé)
+  ;;;;; Si après heure de la température max, utiliser l'heure de la température min du jour suivant (déjà calculé)
   ifelse time:is-after? currentDateTime dateTimeTemperatureMax [
     set secondsBeforeExtremum time:difference-between currentDateTime dateTimeTemperatureMin "seconds"
   ][
-    ;;;;;; Si avant heure de la température min, utiliser l'heure de la température min
+    ;;;;; Si avant heure de la température min, utiliser l'heure de la température min
     ifelse time:is-before? currentDateTime dateTimeTemperatureMin[
       set secondsBeforeExtremum time:difference-between currentDateTime dateTimeTemperatureMin "seconds"
     ][
@@ -710,13 +709,13 @@ to setupTemperature
     ]
   ]
 
-  ;;;; Affectation des températures en fonction de la température cible
+  ;;; Affectation des températures en fonction de la température cible
   ifelse time:is-before? dateTimeTemperatureMin dateTimeTemperatureMax[
-    ;;;;; Si setup lancé avant pic max
+    ;;;; Si setup lancé avant pic max
     set secondsBetweenExtremums time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
     set temperatureOutside targetTemperatureOutsideMin + (secondsBetweenExtremums - secondsBeforeExtremum) * ((targetTemperatureOutsideMax - targetTemperatureOutsideMin) / secondsBetweenExtremums)
   ][
-    ;;;;; Si setup lancé après pic max
+    ;;;; Si setup lancé après pic max
     set secondsBetweenExtremums time:difference-between dateTimeTemperatureMax dateTimeTemperatureMin "seconds"
     set temperatureOutside targetTemperatureOutsideMax - (secondsBetweenExtremums - secondsBeforeExtremum) * ((targetTemperatureOutsideMax - targetTemperatureOutsideMin) / secondsBetweenExtremums)
   ]
@@ -1863,7 +1862,6 @@ to setup
     setupLightOutside
 
     ;;; Fichier
-
     if saveData[
       ;;; Insertion date dans nom de fichier
       if oneFilePerDay[
@@ -2092,11 +2090,11 @@ end
 
 ; Gestion de la température extérieure
 to temperatureOutsideManagement
-  ;;; Si heure du pic atteint, alors temperatureOutside = temperature du pic et on met le datetime du prochain pic au lendemain
+  ;; Si heure du pic atteint, alors temperatureOutside = temperature du pic et on met le datetime du prochain pic au lendemain
   if time:is-equal? currentDateTime dateTimeTemperatureMax[
     set temperatureOutside targetTemperatureOutsideMax
     set dateTimeTemperatureMin time:plus dateTimeTemperatureMin 1 "day"
-    ;;; Changement température cible
+    ;; Changement température cible
     let temperatureVariation random maxTemperatureVariation
     if season = "Winter" [
       set targetTemperatureOutsideMin minTemperatureWinter + temperatureVariation
@@ -2133,10 +2131,10 @@ to temperatureOutsideManagement
     set secondsBetweenExtremums time:difference-between dateTimeTemperatureMin dateTimeTemperatureMax "seconds"
   ]
 
-  ;;; Si après heure de la température max ou avant heure de la température min, diminuer la température
+  ;; Si après heure de la température max ou avant heure de la température min, diminuer la température
   ifelse time:is-after? currentDateTime dateTimeTemperatureMax or time:is-before? currentDateTime dateTimeTemperatureMin [
     set temperatureOutside temperatureOutside - ((targetTemperatureOutsideMax - targetTemperatureOutsideMin) / secondsBetweenExtremums)
-  ][ ;;; Sinon (entre 2 extremums), monter la température
+  ][ ;; Sinon (entre 2 extremums), monter la température
     set temperatureOutside temperatureOutside + ((targetTemperatureOutsideMax - targetTemperatureOutsideMin) / secondsBetweenExtremums)
   ]
 end
@@ -2204,66 +2202,66 @@ end
 
 ; Gestion de la température intérieure
 to insideTemperatureManagement
-  ;;; Echange passif avec extérieur
-  ;;;; Si au moins 1 fenêtre ouverte dans les pièces principales, isolation avec l'extérieur divisé par 100
+  ;; Echange passif avec extérieur
+  ;;; Si au moins 1 fenêtre ouverte dans les pièces principales, isolation avec l'extérieur divisé par 100
   ifelse any?(windows with [isOpen = true and (any?(neighbors with [pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3]) or any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3])]))])
   [
     set temperaturePrincipalRooms temperaturePrincipalRooms - ((temperaturePrincipalRooms - temperatureOutside) / (isolation / 100))
   ][
     set temperaturePrincipalRooms temperaturePrincipalRooms - ((temperaturePrincipalRooms - temperatureOutside) / isolation)
   ]
-  ;;;; Si au moins 1 fenêtre ouverte dans l'entrée
+  ;;; Si au moins 1 fenêtre ouverte dans l'entrée
   ifelse any?(windows with [isOpen = true and (any?(neighbors with [pcolor = 64.7]) or any?(neighbors with[pcolor = 23.3 and any?(neighbors with[pcolor = 64.7])]))])
   [
     set temperatureEntrance temperatureEntrance - ((temperatureEntrance - temperatureOutside) / (isolation / 100))
   ][
     set temperatureEntrance temperatureEntrance - ((temperatureEntrance - temperatureOutside) / isolation)
   ]
-  ;;;; Gestion température SdB
+  ;;; Gestion température SdB
   set temperatureBathroom temperatureBathroom - ((temperatureBathroom - temperatureOutside) / isolation)
 
 
-  ;;; Equilibre température entre les pièces
+  ;; Equilibre température entre les pièces
   let avgTemperature 0
-  ;;;; Entrée-Salle de bain
+  ;;; Entrée-Salle de bain
   set avgTemperature (temperatureEntrance + temperatureBathroom) / 2
   set temperatureEntrance temperatureEntrance - ((temperatureEntrance - avgTemperature) / (isolation / 10))
   set temperatureBathroom temperatureBathroom - ((temperatureBathroom - avgTemperature) / (isolation / 10))
 
-  ;;;; Entrée-PiècesPrincipales
+  ;;; Entrée-PiècesPrincipales
   set avgTemperature (temperatureEntrance + temperaturePrincipalRooms) / 2
   set temperatureEntrance temperatureEntrance - ((temperatureEntrance - avgTemperature) / (isolation / 10))
   set temperaturePrincipalRooms temperaturePrincipalRooms - ((temperaturePrincipalRooms - avgTemperature) / (isolation / 10))
 
-  ;;; Chauffage
-  ;;; On assume qu'il faut 70W pour 1m3
+  ;; Chauffage
+  ;; On assume qu'il faut 70W pour 1m3
   ask heaters with [isActive = true][
-    ;;;; Entrée
+    ;;; Entrée
     if pcolor = 64.7[
       set temperatureEntrance temperatureEntrance + ( (power / (25 * 70)) / 3600 ) ;;;;; On assume que la pièce fait 25m3 (9m², 2.8m de hauteur)
     ]
-    ;;;; Pièces principales
+    ;;; Pièces principales
     if pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3[
       set temperaturePrincipalRooms temperaturePrincipalRooms + ( (power / (84 * 70)) / 3600 ) ;;;;; On assume que la pièce fait 84m3 (30m², 2.8m de hauteur)
     ]
-    ;;;; Salle de bain
+    ;;; Salle de bain
     if pcolor = 84.9[
       set temperatureBathroom temperatureBathroom + ( (power / (25 * 70)) / 3600 )
     ]
   ]
 
-  ;;; Refroidissement par clim
-  ;;; On assume qu'il faut 100W pour 1m3
+  ;; Refroidissement par clim
+  ;; On assume qu'il faut 100W pour 1m3
   ask ACs with [isActive = true][
-    ;;;; Entrée
+    ;;; Entrée
     if pcolor = 64.7[
       set temperatureEntrance temperatureEntrance - ( (power / (25 * 100)) / 3600 ) ;;;;; On assume que la pièce fait 25m3
     ]
-    ;;;; Pièces principales
+    ;;; Pièces principales
     if pcolor = 14.4 or pcolor = 44.4 or pcolor = 126.3[
       set temperaturePrincipalRooms temperaturePrincipalRooms - ( (power / (84 * 100)) / 3600 ) ;;;;; On assume que la pièce fait 30m3
     ]
-    ;;;; Salle de bain
+    ;;; Salle de bain
     if pcolor = 84.9[
       set temperatureBathroom temperatureBathroom - ( (power / (25 * 100)) / 3600 )
     ]
@@ -2315,47 +2313,45 @@ end
 ;; Recherche de chemin via A*
 to-report findPath [source-patch destination-patch]
 
-  ; initialize all variables to default values
+  ;;; Initialisation
   let search-done false
   let search-path []
   let current-patch 0
   let open []
   let closed []
 
-  ; add source patch in the open list
+  ;;; Ajout de la source
   set open lput source-patch open
 
-  ; loop until we reach the destination or the open list becomes empty
+  ;;; Boucle jusqu'à destination
   while [search-done != true][
     ifelse length open != 0[
 
-      ; take the first patch in the open list
-      ; as the current patch (which is currently being explored (n))
-      ; and remove it from the open list
+      ;;;; Prend le premier patch en tant que patch actuel
+      ;;;; Et le retire de open
       set current-patch item 0 open
       set open remove-item 0 open
 
-      ; add the current patch to the closed list
+      ;;;; Ajoute le patch à closed
       set closed lput current-patch closed
 
-      ; explore the Von Neumann (left, right, top and bottom) neighbors of the current patch
+      ;;;; Regarde les voisins
       ask current-patch[
-        ; if any of the neighbors is the destination stop the search process
+        ;;;;; Si voisin destination
         ifelse any? neighbors with [ (pxcor = [ pxcor ] of destination-patch) and (pycor = [pycor] of destination-patch)][
           set search-done true
         ]
         [
-          ; the neighbors should not be obstacles or already explored patches (part of the closed list)
+          ;;;;;; Si voisin peut être marché dessus et n'est pas un patch déjà exploré
           ask neighbors with [pcolor != 0 and pcolor != 105 and pcolor != 23.3 and (not member? self closed) and (self != parent-patch)]
           [
-            ; the neighbors to be explored should also not be the source or
-            ; destination patches or already a part of the open list (unexplored patches list)
+            ;;;;;; Les voisins à explorer ne doivet pas être la source ou être déjà dans la liste open
             if not member? self open and self != source-patch and self != destination-patch
             [
-              ; add the eligible patch to the open list
+              ;;;;;; Ajout du patch éligible dans open
               set open lput self open
 
-              ; update the path finding variables of the eligible patch
+              ;;;;;; Mise à jour des attributs de patch
               set parent-patch current-patch
               set g [g] of parent-patch  + 1
               set h distance destination-patch
@@ -2366,19 +2362,14 @@ to-report findPath [source-patch destination-patch]
       ]
     ]
     [
-      ; if a path is not found (search is incomplete) and the open list is exhausted
-      ; display a user message and report an empty search path list.
+      ;;; Si patch non trouvé
       report []
     ]
   ]
 
-  ; if a path is found (search completed) add the current patch
-  ; (node adjacent to the destination) to the search path.
+  ;; Si patch trouvé
   set search-path lput current-patch search-path
 
-  ; trace the search path from the current patch
-  ; all the way to the source patch using the parent patch
-  ; variable which was set during the search for every patch that was explored
   let temp first search-path
   while [ temp != source-patch ]
   [
@@ -2386,14 +2377,13 @@ to-report findPath [source-patch destination-patch]
     set temp [parent-patch] of temp
   ]
 
-  ; add the destination patch to the front of the search path
+  ;; Ajout patch destination
   set search-path fput destination-patch search-path
 
-  ; reverse the search path so that it starts from a patch adjacent to the
-  ; source patch and ends at the destination patch
+  ;; Inversion pour obtenir chemin
   set search-path reverse search-path
 
-  ; report the search path
+  ;; Retourne le chemin
   report search-path
 end
 
@@ -6108,7 +6098,7 @@ SWITCH
 63
 saveData
 saveData
-0
+1
 1
 -1000
 
@@ -6119,7 +6109,7 @@ SWITCH
 63
 oneFilePerDay
 oneFilePerDay
-0
+1
 1
 -1000
 
