@@ -557,47 +557,47 @@ to setupDate
   ;;; Récupération date
   let datetimeString date-and-time
   ;;; Conversion mois
-  if substring datetimeString 19 22 = "jan"[
+  if position "janvier" datetimeString != false or position "january" datetimeString != false[
     set month "01"
   ]
-  if substring datetimeString 19 22 = "fev" or substring datetimeString 19 22 = "feb"[
+  if position "fevrier" datetimeString != false or position "febuary" datetimeString != false[
     set month "02"
   ]
-  if substring datetimeString 19 22 = "mar"[
+  if position "mars" datetimeString != false or position "march" datetimeString != false[
     set month "03"
   ]
-  if substring datetimeString 19 22 = "avr" or substring datetimeString 19 22 = "apr"[
+  if position "avril" datetimeString != false or position "april" datetimeString != false[
     set month "04"
   ]
-  if substring datetimeString 19 22 = "mai" or substring datetimeString 19 22 = "may"[
+  if position "mai" datetimeString != false or position "may" datetimeString != false[
     set month "05"
   ]
-  if substring datetimeString 19 22 = "jun"[
+  if position "juin" datetimeString != false or position "june" datetimeString != false[
     set month "06"
   ]
-  if substring datetimeString 19 22 = "jui" or substring datetimeString 19 22 = "jul"[
+  if position "juillet" datetimeString != false or position "july" datetimeString != false[
     set month "07"
   ]
-  if substring datetimeString 19 22 = "aou" or substring datetimeString 19 22 = "aug"[
+  if position "août" datetimeString != false or position "august" datetimeString != false[
     set month "08"
   ]
-  if substring datetimeString 19 22 = "sep"[
+  if position "septembre" datetimeString != false or position "september" datetimeString != false[
     set month "09"
   ]
-  if substring datetimeString 19 22 = "oct"[
+  if position "octobre" datetimeString != false or position "october" datetimeString != false[
     set month "10"
   ]
-  if substring datetimeString 19 22 = "nov"[
+  if position "novembre" datetimeString != false or position "november" datetimeString != false[
     set month "11"
   ]
-  if substring datetimeString 19 22 = "dec"[
+  if position "decembre" datetimeString != false or position "december" datetimeString != false[
     set month "12"
   ]
 
   ;;; Création datetime de l'extension date à partir de datetimeString
-  let datetimeString2 (word (substring datetimeString 23 27) "-" month "-" (substring datetimeString 16 18) " " (substring datetimeString 0 2) ":" (substring datetimeString 3 5) ":" (substring datetimeString 6 8))
+  let datetimeString2 (word (reverse (substring (reverse datetimeString) 0 4)) "-" month "-" (substring datetimeString 16 18) " " (substring datetimeString 0 2) ":" (substring datetimeString 3 5) ":" (substring datetimeString 6 8))
   if startAtmorning[
-    set datetimeString2 (word (substring datetimeString 23 27) "-" month "-" (substring datetimeString 16 18) " 06:00:00")
+    set datetimeString2 (word (reverse (substring (reverse datetimeString) 0 4)) "-" month "-" (substring datetimeString 16 18) " 06:00:00")
   ]
   let tmpDatetime time:create datetimeString2
 
